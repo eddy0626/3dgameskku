@@ -1,0 +1,168 @@
+name: 🤖 Gemini AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    name: AI Code Review
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.cs
+            **/*.shader
+            **/*.json
+            **/*.yml
+            **/*.yaml
+
+      - name: Setup Node.js
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Create review script
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          cat << 'EOF' > review.mjs
+          import https from 'https';
+          import fs from 'fs';
+
+          const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+          const changedFiles = process.env.CHANGED_FILES.split(' ').filter(f => f);
+
+          async function getFileContent(filePath) {
+            try {
+              return fs.readFileSync(filePath, 'utf8');
+            } catch (e) {
+              return null;
+            }
+          }
+
+          async function reviewWithGemini(code, fileName) {
+            const prompt = `당신은 Unity 게임 개발 전문 코드 리뷰어입니다.
+          
+          다음 코드를 리뷰해주세요. 한국어로 답변해주세요.
+          
+          파일명: ${fileName}
+          
+          \`\`\`
+          ${code}
+          \`\`\`
+          
+          다음 항목들을 검토해주세요:
+          1. 🐛 버그 가능성
+          2. ⚡ 성능 개선점
+          3. 🎮 Unity 베스트 프랙티스
+          4. 📝 코드 가독성
+          5. 🔒 잠재적 보안 이슈
+          
+          각 항목에 대해 간결하게 피드백을 주고, 개선이 필요하면 수정된 코드 예시도 제공해주세요.
+          문제가 없다면 "✅ 좋습니다!"라고 답변해주세요.`;
+
+            return new Promise((resolve, reject) => {
+              const data = JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  temperature: 0.3,
+                  maxOutputTokens: 2048
+                }
+              });
+
+              const options = {
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(data)
+                }
+              };
+
+              const req = https.request(options, (res) => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                  try {
+                    const json = JSON.parse(body);
+                    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '리뷰를 생성할 수 없습니다.';
+                    resolve(text);
+                  } catch (e) {
+                    resolve('API 응답 파싱 실패: ' + e.message);
+                  }
+                });
+              });
+
+              req.on('error', reject);
+              req.write(data);
+              req.end();
+            });
+          }
+
+          async function main() {
+            let reviews = [];
+            
+            console.log('📝 리뷰할 파일들:', changedFiles);
+            
+            for (const file of changedFiles) {
+              const content = await getFileContent(file);
+              if (content && content.length < 10000) {
+                console.log(`🔍 리뷰 중: ${file}`);
+                const review = await reviewWithGemini(content, file);
+                reviews.push(`## 📄 \`${file}\`\n\n${review}`);
+              }
+            }
+
+            if (reviews.length === 0) {
+              reviews.push('리뷰할 코드 파일이 없습니다.');
+            }
+
+            const finalReview = `# 🤖 Gemini AI 코드 리뷰\n\n${reviews.join('\n\n---\n\n')}`;
+            
+            fs.writeFileSync('review_output.md', finalReview);
+            console.log('✅ 리뷰 완료!');
+          }
+
+          main().catch(console.error);
+          EOF
+
+      - name: Run Gemini review
+        if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: node review.mjs
+
+      - name: Post review comment
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const review = fs.readFileSync('review_output.md', 'utf8');
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: review
+            });
+
+      - name: No files to review
+        if: steps.changed-files.outputs.any_changed != 'true'
+        run: echo "📭 리뷰할 코드 파일이 없습니다."
