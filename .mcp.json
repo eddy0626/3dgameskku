@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "unityMCP": {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": [
+        "/c",
+        "C:\\Users\\eddy0\\.local\\bin\\uvx.exe",
+        "--from",
+        "git+https://github.com/CoplayDev/unity-mcp@v8.1.6#subdirectory=Server",
+        "mcp-for-unity",
+        "--transport",
+        "stdio"
+      ]
+    },
+    "serena": {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": [
+        "/c",
+        "C:\\Users\\eddy0\\.local\\bin\\uvx.exe",
+        "--from",
+        "serena-mcp",
+        "serena-mcp",
+        "--project",
+        "C:\\Users\\eddy0\\skku3dgame"
+      ]
+    }
+  }
+}
