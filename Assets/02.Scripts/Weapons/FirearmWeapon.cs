@@ -282,10 +282,4 @@ public class FirearmWeapon : WeaponBase
     }
 }
 
-/// <summary>
-/// 데미지를 받을 수 있는 오브젝트 인터페이스
-/// </summary>
-public interface IDamageable
-{
-    void TakeDamage(float damage, Vector3 hitPoint, Vector3 hitNormal);
-}
+
