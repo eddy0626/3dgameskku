@@ -68,10 +68,21 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 실제 발사 처리
     /// </summary>
+/// <summary>
+    /// 실제 발사 처리
+    /// </summary>
     protected override void Fire()
     {
-        // Raycast로 타격 판정
-        PerformRaycast();
+        // 발사 타입에 따른 처리
+        switch (_weaponData.fireType)
+        {
+            case FireType.Hitscan:
+                PerformRaycast();
+                break;
+            case FireType.Projectile:
+                FireProjectile();
+                break;
+        }
         
         // 이펙트
         PlayMuzzleFlash();
@@ -90,7 +101,7 @@ public class FirearmWeapon : WeaponBase
             if (_burstCount >= BURST_AMOUNT)
             {
                 _burstCount = 0;
-                _nextFireTime = Time.time + 0.3f; // 점사 간 딜레이
+                _nextFireTime = Time.time + 0.3f;
             }
         }
     }
@@ -114,6 +125,62 @@ public class FirearmWeapon : WeaponBase
             OnHit(hit);
         }
     }
+
+/// <summary>
+    /// 발사체(총알) 발사
+    /// </summary>
+    private void FireProjectile()
+    {
+        if (_weaponData.projectilePrefab == null)
+        {
+            Debug.LogWarning($"[{_weaponData.weaponName}] Projectile prefab이 설정되지 않았습니다!");
+            return;
+        }
+        
+        if (_muzzlePoint == null)
+        {
+            Debug.LogWarning($"[{_weaponData.weaponName}] MuzzlePoint가 설정되지 않았습니다!");
+            return;
+        }
+        
+        // 발사 방향 계산 (카메라 중앙 방향)
+        Vector3 shootDirection = _cameraTransform != null 
+            ? _cameraTransform.forward 
+            : _muzzlePoint.forward;
+        
+        // 발사체 생성
+        GameObject projectileObj = Instantiate(
+            _weaponData.projectilePrefab,
+            _muzzlePoint.position,
+            Quaternion.LookRotation(shootDirection)
+        );
+        
+        // Projectile 컴포넌트 초기화
+        Projectile projectile = projectileObj.GetComponent<Projectile>();
+        if (projectile != null)
+        {
+            projectile.Initialize(
+                _weaponData.projectileSpeed,
+                _weaponData.damage,
+                shootDirection,
+                transform.root.gameObject
+            );
+            projectile.SetGravity(_weaponData.projectileUseGravity);
+            projectile.SetHitLayers(_hitLayers);
+        }
+        else
+        {
+            // Projectile 컴포넌트가 없으면 Rigidbody로 발사
+            Rigidbody rb = projectileObj.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.linearVelocity = shootDirection * _weaponData.projectileSpeed;
+            }
+        }
+        
+        Debug.Log($"[{_weaponData.weaponName}] Projectile fired!");
+    }
+
     
     /// <summary>
     /// 피격 처리

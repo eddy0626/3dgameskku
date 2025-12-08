@@ -26,6 +26,10 @@ MonoBehaviour:
   recoilRecoverySpeed: 5
   adsPosition: {x: 0, y: -0.1, z: 0.1}
   adsSpeed: 10
+  fireType: 1
+  projectilePrefab: {fileID: 3796759224120941269, guid: f64a4dbc5a4a5c943909cac07ff86e1c, type: 3}
+  projectileSpeed: 100
+  projectileUseGravity: 0
   muzzleFlashPrefab: {fileID: 0}
   bulletHolePrefab: {fileID: 0}
   fireSound: {fileID: 0}

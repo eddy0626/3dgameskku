@@ -51,6 +51,19 @@ public class WeaponData : ScriptableObject
     [Tooltip("조준 전환 속도")]
     public float adsSpeed = 10f;
     
+    [Header("발사체 설정")]
+    [Tooltip("발사 타입: Hitscan(즉시 적중) 또는 Projectile(물리 발사체)")]
+    public FireType fireType = FireType.Hitscan;
+    
+    [Tooltip("발사체 프리팹 (Projectile 타입 시 필요)")]
+    public GameObject projectilePrefab;
+    
+    [Tooltip("발사체 속도 (m/s)")]
+    public float projectileSpeed = 100f;
+    
+    [Tooltip("발사체 중력 사용")]
+    public bool projectileUseGravity = false;
+    
     [Header("이펙트")]
     public GameObject muzzleFlashPrefab;
     public GameObject bulletHolePrefab;
@@ -62,6 +75,15 @@ public class WeaponData : ScriptableObject
 /// <summary>
 /// 발사 모드 열거형
 /// </summary>
+/// <summary>
+/// 발사 타입 열거형
+/// </summary>
+public enum FireType
+{
+    Hitscan,    // Raycast 즉시 적중
+    Projectile  // 물리 발사체
+}
+
 public enum FireMode
 {
     Semi,   // 단발
