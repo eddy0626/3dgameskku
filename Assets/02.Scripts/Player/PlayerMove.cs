@@ -1,86 +1,148 @@
+using System;
 using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
 {
-    // 이동 속도
+    [Header("Movement")]
     public float walkSpeed = 5f;
     public float runSpeed = 10f;
-
-    // 점프 힘
     public float jumpForce = 8f;
-
-    // 중력
     public float gravity = 20f;
 
-    // 카메라 Transform (보는 방향 기준)
+    [Header("Stamina")]
+    public float maxStamina = 100f;
+    public float staminaDrainRate = 20f;
+    public float staminaRegenRate = 15f;
+    public float staminaRegenDelay = 1f;
+
+    [Header("References")]
     public Transform cameraTransform;
 
-    // 컴포넌트
-    private CharacterController characterController;
+    // Private fields
+    private CharacterController _characterController;
+    private Vector3 _velocity;
+    private bool _isGrounded;
+    
+    private float _currentStamina;
+    private float _staminaRegenTimer;
+    private bool _isRunning;
 
-    // 현재 속도
-    private Vector3 velocity;
-    private bool isGrounded;
+    // Events
+    public event Action<float, float> OnStaminaChanged;
+
+    // Properties
+    public float CurrentStamina => _currentStamina;
+    public bool CanRun => _currentStamina > 0f;
 
     void Start()
     {
-        // CharacterController 컴포넌트 가져오기
-        characterController = GetComponent<CharacterController>();
-
-        // CharacterController가 없으면 자동으로 추가
-        if (characterController == null)
+        _characterController = GetComponent<CharacterController>();
+        if (_characterController == null)
         {
-            characterController = gameObject.AddComponent<CharacterController>();
+            _characterController = gameObject.AddComponent<CharacterController>();
         }
 
-        // 카메라가 지정되지 않았으면 메인 카메라 사용
         if (cameraTransform == null)
         {
             cameraTransform = Camera.main.transform;
         }
+
+        _currentStamina = maxStamina;
+        OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
     }
 
     void Update()
     {
-        // 바닥 체크
-        isGrounded = characterController.isGrounded;
+        HandleGroundCheck();
+        HandleMovement();
+        HandleStamina();
+        HandleJump();
+        ApplyGravity();
+    }
 
-        if (isGrounded && velocity.y < 0)
+    private void HandleGroundCheck()
+    {
+        _isGrounded = _characterController.isGrounded;
+        if (_isGrounded && _velocity.y < 0)
         {
-            velocity.y = -2f; // 바닥에 붙어있도록
+            _velocity.y = -2f;
         }
+    }
 
-        // 1. 키보드 입력 받기 (WASD 또는 방향키)
-        float moveX = Input.GetAxis("Horizontal"); // A/D 또는 좌/우
-        float moveZ = Input.GetAxis("Vertical");   // W/S 또는 상/하
+    private void HandleMovement()
+    {
+        float moveX = Input.GetAxis("Horizontal");
+        float moveZ = Input.GetAxis("Vertical");
 
-        // 2. 카메라가 보는 방향 가져오기 (Y축 회전만 사용)
         Vector3 cameraForward = cameraTransform.forward;
         Vector3 cameraRight = cameraTransform.right;
-
-        // 수평 이동만 하도록 Y값 제거
         cameraForward.y = 0f;
         cameraRight.y = 0f;
         cameraForward.Normalize();
         cameraRight.Normalize();
 
-        // 3. 이동 방향 계산 (카메라 방향 기준)
         Vector3 moveDirection = cameraRight * moveX + cameraForward * moveZ;
+        bool isMoving = moveDirection.magnitude > 0.1f;
+        bool wantsToRun = Input.GetKey(KeyCode.LeftShift);
 
-        // 4. 달리기 체크 (Left Shift)
-        float currentSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
+        _isRunning = isMoving && wantsToRun && CanRun;
+        float currentSpeed = _isRunning ? runSpeed : walkSpeed;
 
-        // 5. 이동 적용
-        characterController.Move(moveDirection * currentSpeed * Time.deltaTime);
+        _characterController.Move(moveDirection * currentSpeed * Time.deltaTime);
+    }
 
-        // 6. 점프 (Space)
-        if (Input.GetButtonDown("Jump") && isGrounded)
+    private void HandleStamina()
+    {
+        float previousStamina = _currentStamina;
+
+        if (_isRunning)
         {
-            velocity.y = Mathf.Sqrt(jumpForce * 2f * gravity);
+            _currentStamina -= staminaDrainRate * Time.deltaTime;
+            _currentStamina = Mathf.Max(_currentStamina, 0f);
+            _staminaRegenTimer = staminaRegenDelay;
+        }
+        else
+        {
+            if (_staminaRegenTimer > 0f)
+            {
+                _staminaRegenTimer -= Time.deltaTime;
+            }
+            else if (_currentStamina < maxStamina)
+            {
+                _currentStamina += staminaRegenRate * Time.deltaTime;
+                _currentStamina = Mathf.Min(_currentStamina, maxStamina);
+            }
         }
 
-        // 7. 중력 적용
-        velocity.y -= gravity * Time.deltaTime;
-        characterController.Move(velocity * Time.deltaTime);
+        if (Mathf.Abs(previousStamina - _currentStamina) > 0.01f)
+        {
+            OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
+        }
+    }
+
+    private void HandleJump()
+    {
+        if (Input.GetButtonDown("Jump") && _isGrounded)
+        {
+            _velocity.y = Mathf.Sqrt(jumpForce * 2f * gravity);
+        }
+    }
+
+    private void ApplyGravity()
+    {
+        _velocity.y -= gravity * Time.deltaTime;
+        _characterController.Move(_velocity * Time.deltaTime);
+    }
+
+    public void RestoreStamina(float amount)
+    {
+        _currentStamina = Mathf.Min(_currentStamina + amount, maxStamina);
+        OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
+    }
+
+    public void SetStamina(float amount)
+    {
+        _currentStamina = Mathf.Clamp(amount, 0f, maxStamina);
+        OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
     }
 }

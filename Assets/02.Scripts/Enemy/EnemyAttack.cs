@@ -67,7 +67,7 @@ public class EnemyAttack : MonoBehaviour
     
     #region Unity Callbacks
     
-    private void Awake()
+private void Awake()
     {
         _audioSource = GetComponent<AudioSource>();
         
@@ -76,10 +76,35 @@ public class EnemyAttack : MonoBehaviour
             _animator = GetComponent<Animator>();
         }
         
-        // FirePoint가 없으면 자신의 위치 사용
+        // FirePoint가 없으면 MuzzlePoint 자식 오브젝트 검색
         if (_firePoint == null)
         {
-            _firePoint = transform;
+            Transform muzzle = transform.Find("GunHolder/EnemyGun/MuzzlePoint");
+            if (muzzle == null)
+            {
+                muzzle = GetComponentInChildren<Transform>().Find("MuzzlePoint");
+            }
+            _firePoint = muzzle ?? transform;
+            
+            if (muzzle != null)
+            {
+                Debug.Log($"[EnemyAttack] Auto-found MuzzlePoint at {muzzle.name}");
+            }
+        }
+        
+        // 발사체 프리팹이 없으면 Resources에서 자동 로드
+        if (_projectilePrefab == null && (_attackType == AttackType.Ranged || _attackType == AttackType.Both))
+        {
+            _projectilePrefab = Resources.Load<GameObject>("Prefabs/EnemyBullet");
+            
+            if (_projectilePrefab != null)
+            {
+                Debug.Log($"[EnemyAttack] Auto-loaded projectile prefab: EnemyBullet");
+            }
+            else
+            {
+                Debug.LogWarning($"[EnemyAttack] Could not find 'Prefabs/EnemyBullet' in Resources folder!");
+            }
         }
     }
     
