@@ -30,7 +30,11 @@ void Start()
         // fillImage 자동 탐색
         if (fillImage == null)
         {
-            fillImage = GetComponentInChildren<Image>();
+            Transform fillTransform = transform.Find("Fill");
+            if (fillTransform != null)
+            {
+                fillImage = fillTransform.GetComponent<Image>();
+            }
         }
 
         if (fillImage == null)
@@ -39,6 +43,11 @@ void Start()
             enabled = false;
             return;
         }
+
+        // Filled 타입 설정 (Horizontal Left to Right)
+        fillImage.type = Image.Type.Filled;
+        fillImage.fillMethod = Image.FillMethod.Horizontal;
+        fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
 
         if (playerMove == null)
         {

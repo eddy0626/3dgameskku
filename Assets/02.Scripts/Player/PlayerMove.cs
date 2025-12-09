@@ -9,6 +9,10 @@ public class PlayerMove : MonoBehaviour
     public float jumpForce = 8f;
     public float gravity = 20f;
 
+    [Header("Double Jump")]
+    public float doubleJumpStaminaCost = 25f;
+    public float doubleJumpForce = 7f;
+
     [Header("Stamina")]
     public float maxStamina = 100f;
     public float staminaDrainRate = 20f;
@@ -26,6 +30,7 @@ public class PlayerMove : MonoBehaviour
     private float _currentStamina;
     private float _staminaRegenTimer;
     private bool _isRunning;
+    private bool _canDoubleJump;
 
     // Events
     public event Action<float, float> OnStaminaChanged;
@@ -60,12 +65,13 @@ public class PlayerMove : MonoBehaviour
         ApplyGravity();
     }
 
-    private void HandleGroundCheck()
+private void HandleGroundCheck()
     {
         _isGrounded = _characterController.isGrounded;
         if (_isGrounded && _velocity.y < 0)
         {
             _velocity.y = -2f;
+            _canDoubleJump = false; // 땅에 닿으면 2단 점프 상태 리셋
         }
     }
 
@@ -120,11 +126,25 @@ public class PlayerMove : MonoBehaviour
         }
     }
 
-    private void HandleJump()
+private void HandleJump()
     {
-        if (Input.GetButtonDown("Jump") && _isGrounded)
+        if (Input.GetButtonDown("Jump"))
         {
-            _velocity.y = Mathf.Sqrt(jumpForce * 2f * gravity);
+            if (_isGrounded)
+            {
+                // 1단 점프: 스태미나 소모 없음
+                _velocity.y = Mathf.Sqrt(jumpForce * 2f * gravity);
+                _canDoubleJump = true;
+            }
+            else if (_canDoubleJump && _currentStamina >= doubleJumpStaminaCost)
+            {
+                // 2단 점프: 스태미나 소모
+                _velocity.y = Mathf.Sqrt(doubleJumpForce * 2f * gravity);
+                _currentStamina -= doubleJumpStaminaCost;
+                _staminaRegenTimer = staminaRegenDelay;
+                _canDoubleJump = false;
+                OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
+            }
         }
     }
 
