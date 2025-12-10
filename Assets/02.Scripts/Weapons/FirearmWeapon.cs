@@ -3,6 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Raycast 기반 총기 무기 클래스
 /// Hitscan 방식으로 즉시 타격 판정
+/// B키로 발사 모드 전환 (Semi/Burst/Auto)
 /// </summary>
 public class FirearmWeapon : WeaponBase
 {
@@ -19,6 +20,19 @@ public class FirearmWeapon : WeaponBase
     // 점사 모드용
     private int _burstCount;
     private const int BURST_AMOUNT = 3;
+    
+    // 런타임 발사 모드 (WeaponData의 fireMode 대신 사용)
+    private FireMode _currentFireMode;
+    private bool _isTriggerHeld = false;
+    private bool _hasFiredThisTrigger = false;
+    
+    // 발사 모드 변경 이벤트
+    public event System.Action<FireMode> OnFireModeChanged;
+    
+    /// <summary>
+    /// 현재 발사 모드 프로퍼티
+    /// </summary>
+    public FireMode CurrentFireMode => _currentFireMode;
     
     protected override void Awake()
     {
@@ -39,6 +53,66 @@ public class FirearmWeapon : WeaponBase
                 _recoilSystem = FindFirstObjectByType<RecoilSystem>();
             }
         }
+        
+        // 초기 발사 모드 설정
+        if (_weaponData != null)
+        {
+            _currentFireMode = _weaponData.fireMode;
+        }
+    }
+    
+    /// <summary>
+    /// 매 프레임 B키 입력 체크
+    /// </summary>
+    private void Update()
+    {
+        // B키로 발사 모드 전환
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            CycleFireMode();
+        }
+    }
+    
+    /// <summary>
+    /// 발사 모드 순환 (Semi → Burst → Auto → Semi...)
+    /// </summary>
+    public void CycleFireMode()
+    {
+        switch (_currentFireMode)
+        {
+            case FireMode.Semi:
+                _currentFireMode = FireMode.Burst;
+                break;
+            case FireMode.Burst:
+                _currentFireMode = FireMode.Auto;
+                break;
+            case FireMode.Auto:
+                _currentFireMode = FireMode.Semi;
+                break;
+        }
+        
+        // 모드 변경 시 점사 카운트 초기화
+        _burstCount = 0;
+        _hasFiredThisTrigger = false;
+        
+        Debug.Log($"[FirearmWeapon] 발사 모드 변경: {_currentFireMode}");
+        OnFireModeChanged?.Invoke(_currentFireMode);
+    }
+    
+    /// <summary>
+    /// 발사 모드 직접 설정
+    /// </summary>
+    public void SetFireMode(FireMode mode)
+    {
+        if (_currentFireMode != mode)
+        {
+            _currentFireMode = mode;
+            _burstCount = 0;
+            _hasFiredThisTrigger = false;
+            
+            Debug.Log($"[FirearmWeapon] 발사 모드 설정: {_currentFireMode}");
+            OnFireModeChanged?.Invoke(_currentFireMode);
+        }
     }
     
     /// <summary>
@@ -52,6 +126,13 @@ public class FirearmWeapon : WeaponBase
         if (_recoilSystem != null && _weaponData != null)
         {
             _recoilSystem.SetWeaponData(_weaponData);
+        }
+        
+        // 발사 모드 초기화
+        if (_weaponData != null)
+        {
+            _currentFireMode = _weaponData.fireMode;
+            OnFireModeChanged?.Invoke(_currentFireMode);
         }
     }
     
@@ -105,8 +186,8 @@ public class FirearmWeapon : WeaponBase
         // 탄약 소모
         ConsumeAmmo();
         
-        // 점사 모드 처리
-        if (_weaponData.fireMode == FireMode.Burst)
+        // 점사 모드 처리 (_currentFireMode 사용)
+        if (_currentFireMode == FireMode.Burst)
         {
             _burstCount++;
             if (_burstCount >= BURST_AMOUNT)
@@ -118,9 +199,6 @@ public class FirearmWeapon : WeaponBase
     }
     
     /// <summary>
-    /// Raycast로 타격 판정
-    /// </summary>
-/// <summary>
     /// Raycast로 타격 판정 (탄퍼짐 적용)
     /// </summary>
     private void PerformRaycast()
@@ -151,9 +229,6 @@ public class FirearmWeapon : WeaponBase
     }
     
     /// <summary>
-    /// 발사체(총알) 발사
-    /// </summary>
-/// <summary>
     /// 발사체(총알) 발사 (탄퍼짐 적용)
     /// </summary>
     private void FireProjectile()
@@ -284,9 +359,6 @@ public class FirearmWeapon : WeaponBase
     }
     
     /// <summary>
-    /// 머즐 플래시 재생
-    /// </summary>
-    /// <summary>
     /// 머즐 플래시 재생 (War FX 연동)
     /// </summary>
     private void PlayMuzzleFlash()
@@ -334,7 +406,7 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 반동 적용 (RecoilSystem에 위임)
     /// </summary>
-private void ApplyRecoil()
+    private void ApplyRecoil()
     {
         Debug.Log($"[FirearmWeapon] ApplyRecoil called - RecoilSystem: {_recoilSystem != null}, WeaponData: {_weaponData != null}");
         
@@ -355,5 +427,19 @@ private void ApplyRecoil()
     public void SetRecoilSystem(RecoilSystem recoilSystem)
     {
         _recoilSystem = recoilSystem;
+    }
+    
+    /// <summary>
+    /// 발사 모드 이름 반환 (UI 표시용)
+    /// </summary>
+    public string GetFireModeName()
+    {
+        return _currentFireMode switch
+        {
+            FireMode.Semi => "SEMI",
+            FireMode.Burst => "BURST",
+            FireMode.Auto => "AUTO",
+            _ => "UNKNOWN"
+        };
     }
 }
