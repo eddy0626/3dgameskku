@@ -33,11 +33,12 @@ public class GrenadeManager : MonoBehaviour
     [SerializeField] private int _trajectoryResolution = 30;
     
     [Header("궤적 DOTween 설정")]
-    [SerializeField] private float _trajectoryPulseSpeed = 2f;
+    [SerializeField] private float _trajectoryFlowSpeed = 3f;
     [SerializeField] private Color _trajectoryStartColor = new Color(1f, 0.8f, 0f, 0.9f);
     [SerializeField] private Color _trajectoryEndColor = new Color(1f, 0.3f, 0f, 0.4f);
-    [SerializeField] private float _trajectoryStartWidth = 0.08f;
-    [SerializeField] private float _trajectoryEndWidth = 0.02f;
+    [SerializeField] private float _trajectoryStartWidth = 0.1f;
+    [SerializeField] private float _trajectoryEndWidth = 0.03f;
+    [SerializeField] private float _trajectoryDashLength = 0.3f;
     
     [Header("착탄 마커 설정")]
     [SerializeField] private bool _showImpactMarker = true;
@@ -49,7 +50,7 @@ public class GrenadeManager : MonoBehaviour
     [Header("착탄 마커 DOTween 설정")]
     [SerializeField] private float _markerPulseScale = 1.2f;
     [SerializeField] private float _markerPulseDuration = 0.5f;
-    [SerializeField] private float _markerRotationSpeed = 30f;
+    [SerializeField] private float _innerRotationSpeed = 60f; // 내부 원 회전 속도
     
     [Header("오브젝트 풀링")]
     [SerializeField] private int _poolDefaultCapacity = 5;
@@ -70,16 +71,22 @@ public class GrenadeManager : MonoBehaviour
     // 착탄 마커
     private GameObject _impactMarkerInstance;
     private Transform _impactMarkerTransform;
+    private Transform _innerCircleTransform; // 내부 원 별도 참조 (회전용)
+    private Transform _outerRingTransform;   // 외곽 링 별도 참조 (고정)
     private SpriteRenderer _impactMarkerRenderer;
     private MeshRenderer _impactMarkerMeshRenderer;
     private Vector3 _currentImpactPoint;
     private Vector3 _currentImpactNormal;
     private bool _hasValidImpact;
     
+    // 궤적 머티리얼
+    private Material _trajectoryMaterial;
+    private float _trajectoryUVOffset;
+    
     // DOTween 시퀀스
     private Sequence _trajectorySequence;
     private Sequence _markerPulseSequence;
-    private Tween _markerRotationTween;
+    private Tween _innerRotationTween;
     
     // 이벤트
     public event Action<int, int> OnGrenadeCountChanged; // (현재, 최대)
@@ -177,6 +184,9 @@ public class GrenadeManager : MonoBehaviour
         
         // 착탄 마커 업데이트
         UpdateImpactMarkerPosition();
+        
+        // 궤적 UV 오프셋 업데이트 (점선 흐름 효과)
+        UpdateTrajectoryUVOffset();
     }
     
     private void OnDestroy()
@@ -184,7 +194,7 @@ public class GrenadeManager : MonoBehaviour
         // DOTween 정리
         _trajectorySequence?.Kill();
         _markerPulseSequence?.Kill();
-        _markerRotationTween?.Kill();
+        _innerRotationTween?.Kill();
         
         // 풀 정리
         _grenadePool?.Dispose();
@@ -194,6 +204,12 @@ public class GrenadeManager : MonoBehaviour
         if (_impactMarkerInstance != null)
         {
             Destroy(_impactMarkerInstance);
+        }
+        
+        // 머티리얼 정리
+        if (_trajectoryMaterial != null)
+        {
+            Destroy(_trajectoryMaterial);
         }
         
         if (Instance == this)
@@ -448,17 +464,28 @@ public class GrenadeManager : MonoBehaviour
             GameObject lineObj = new GameObject("GrenadeTrajectory");
             lineObj.transform.SetParent(transform);
             _trajectoryLine = lineObj.AddComponent<LineRenderer>();
+        }
+        
+        if (_trajectoryLine != null)
+        {
+            // 점선 텍스처 생성
+            Texture2D dashTexture = CreateDashTexture();
+            
+            // 점선 머티리얼 설정
+            _trajectoryMaterial = new Material(Shader.Find("Sprites/Default"));
+            _trajectoryMaterial.mainTexture = dashTexture;
+            _trajectoryMaterial.color = Color.white;
             
             // 라인 스타일 설정
             _trajectoryLine.startWidth = _trajectoryStartWidth;
             _trajectoryLine.endWidth = _trajectoryEndWidth;
-            _trajectoryLine.material = new Material(Shader.Find("Sprites/Default"));
+            _trajectoryLine.material = _trajectoryMaterial;
             _trajectoryLine.startColor = _trajectoryStartColor;
             _trajectoryLine.endColor = _trajectoryEndColor;
             _trajectoryLine.positionCount = _trajectoryResolution;
             _trajectoryLine.enabled = false;
             
-            // 텍스처 모드 설정 (부드러운 라인)
+            // 텍스처 모드 설정 (타일링 - 점선 효과용)
             _trajectoryLine.textureMode = LineTextureMode.Tile;
             _trajectoryLine.numCapVertices = 4;
             _trajectoryLine.numCornerVertices = 4;
@@ -466,7 +493,53 @@ public class GrenadeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// DOTween 궤적 애니메이션 시작
+    /// 점선 텍스처 생성
+    /// </summary>
+    private Texture2D CreateDashTexture()
+    {
+        int width = 32;
+        int height = 4;
+        Texture2D texture = new Texture2D(width, height, TextureFormat.ARGB32, false);
+        texture.wrapMode = TextureWrapMode.Repeat;
+        texture.filterMode = FilterMode.Bilinear;
+        
+        Color[] pixels = new Color[width * height];
+        
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                // 점선 패턴: 앞 절반은 불투명, 뒤 절반은 반투명
+                float alpha = (x < width / 2) ? 1f : 0.3f;
+                pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        
+        texture.SetPixels(pixels);
+        texture.Apply();
+        
+        return texture;
+    }
+    
+    /// <summary>
+    /// 궤적 UV 오프셋 업데이트 (점선 흐름 효과)
+    /// </summary>
+    private void UpdateTrajectoryUVOffset()
+    {
+        if (_trajectoryMaterial == null || !_trajectoryLine.enabled) return;
+        
+        // UV 오프셋을 시간에 따라 증가시켜 점선이 흐르는 효과
+        _trajectoryUVOffset += Time.deltaTime * _trajectoryFlowSpeed;
+        if (_trajectoryUVOffset > 1f)
+        {
+            _trajectoryUVOffset -= 1f;
+        }
+        
+        _trajectoryMaterial.mainTextureOffset = new Vector2(-_trajectoryUVOffset, 0f);
+    }
+    
+    /// <summary>
+    /// DOTween 궤적 애니메이션 시작 (펄스 효과)
     /// </summary>
     private void StartTrajectoryAnimation()
     {
@@ -478,50 +551,23 @@ public class GrenadeManager : MonoBehaviour
         // 새 시퀀스 생성
         _trajectorySequence = DOTween.Sequence();
         
-        // 색상 펄스 애니메이션
-        Color pulseStartColor = _trajectoryStartColor;
-        Color pulseEndColor = new Color(
-            _trajectoryStartColor.r * 1.3f,
-            _trajectoryStartColor.g * 0.8f,
-            _trajectoryStartColor.b,
-            _trajectoryStartColor.a
-        );
-        
+        // 너비 펄스 애니메이션
         _trajectorySequence.Append(
-            DOTween.To(
-                () => _trajectoryLine.startColor,
-                x => _trajectoryLine.startColor = x,
-                pulseEndColor,
-                _trajectoryPulseSpeed * 0.5f
-            ).SetEase(Ease.InOutSine)
-        );
-        
-        _trajectorySequence.Append(
-            DOTween.To(
-                () => _trajectoryLine.startColor,
-                x => _trajectoryLine.startColor = x,
-                pulseStartColor,
-                _trajectoryPulseSpeed * 0.5f
-            ).SetEase(Ease.InOutSine)
-        );
-        
-        // 너비 펄스 애니메이션 (동시 실행)
-        _trajectorySequence.Join(
             DOTween.To(
                 () => _trajectoryLine.startWidth,
                 x => _trajectoryLine.startWidth = x,
-                _trajectoryStartWidth * 1.3f,
-                _trajectoryPulseSpeed * 0.5f
+                _trajectoryStartWidth * 1.4f,
+                0.4f
             ).SetEase(Ease.InOutSine)
         );
         
-        _trajectorySequence.Join(
+        _trajectorySequence.Append(
             DOTween.To(
                 () => _trajectoryLine.startWidth,
                 x => _trajectoryLine.startWidth = x,
                 _trajectoryStartWidth,
-                _trajectoryPulseSpeed * 0.5f
-            ).SetEase(Ease.InOutSine).SetDelay(_trajectoryPulseSpeed * 0.5f)
+                0.4f
+            ).SetEase(Ease.InOutSine)
         );
         
         // 무한 반복
@@ -592,7 +638,7 @@ public class GrenadeManager : MonoBehaviour
         }
         else
         {
-            // 기본 원형 마커 생성 (쿼드 기반)
+            // 기본 원형 마커 생성 (외곽 고정, 내부 회전 구조)
             _impactMarkerInstance = CreateDefaultMarker();
         }
         
@@ -608,34 +654,41 @@ public class GrenadeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// 기본 원형 마커 생성
+    /// 기본 원형 마커 생성 (외곽 고정, 내부 회전 구조)
     /// </summary>
     private GameObject CreateDefaultMarker()
     {
         GameObject marker = new GameObject("GrenadeImpactMarker");
         
-        // 외곽 링 (자식 오브젝트)
+        // 외곽 링 (고정 - 바닥에 붙어있음)
         GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        ring.name = "MarkerRing";
+        ring.name = "OuterRing";
         ring.transform.SetParent(marker.transform);
         ring.transform.localPosition = Vector3.zero;
         ring.transform.localScale = new Vector3(_markerSize, 0.01f, _markerSize);
+        _outerRingTransform = ring.transform;
         
         // Collider 제거
         Destroy(ring.GetComponent<Collider>());
         
-        // 머티리얼 설정
+        // 외곽 링 머티리얼 (테두리만 보이도록 반투명)
         MeshRenderer meshRenderer = ring.GetComponent<MeshRenderer>();
-        Material markerMaterial = new Material(Shader.Find("Sprites/Default"));
-        markerMaterial.color = _markerColor;
-        meshRenderer.material = markerMaterial;
+        Material outerMaterial = new Material(Shader.Find("Sprites/Default"));
+        outerMaterial.color = new Color(_markerColor.r, _markerColor.g, _markerColor.b, _markerColor.a * 0.6f);
+        meshRenderer.material = outerMaterial;
         
-        // 내부 원 (폭발 범위 표시)
+        // 내부 회전 컨테이너 (이것만 회전)
+        GameObject innerContainer = new GameObject("InnerContainer");
+        innerContainer.transform.SetParent(marker.transform);
+        innerContainer.transform.localPosition = Vector3.zero;
+        _innerCircleTransform = innerContainer.transform;
+        
+        // 내부 원 (폭발 범위 표시 - 회전함)
         GameObject innerCircle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         innerCircle.name = "InnerCircle";
-        innerCircle.transform.SetParent(marker.transform);
+        innerCircle.transform.SetParent(innerContainer.transform);
         innerCircle.transform.localPosition = Vector3.zero;
-        innerCircle.transform.localScale = new Vector3(_markerSize * 0.3f, 0.005f, _markerSize * 0.3f);
+        innerCircle.transform.localScale = new Vector3(_markerSize * 0.4f, 0.005f, _markerSize * 0.4f);
         
         // Collider 제거
         Destroy(innerCircle.GetComponent<Collider>());
@@ -643,10 +696,46 @@ public class GrenadeManager : MonoBehaviour
         // 내부 원 머티리얼
         MeshRenderer innerRenderer = innerCircle.GetComponent<MeshRenderer>();
         Material innerMaterial = new Material(Shader.Find("Sprites/Default"));
-        innerMaterial.color = new Color(_markerColor.r, _markerColor.g, _markerColor.b, _markerColor.a * 0.5f);
+        innerMaterial.color = new Color(_markerColor.r * 1.2f, _markerColor.g, _markerColor.b, _markerColor.a);
         innerRenderer.material = innerMaterial;
         
+        // 십자 표시 (내부 컨테이너에 추가 - 함께 회전)
+        CreateCrossLines(innerContainer.transform);
+        
         return marker;
+    }
+    
+    /// <summary>
+    /// 십자 표시 생성 (회전하는 내부 컨테이너에 추가)
+    /// </summary>
+    private void CreateCrossLines(Transform parent)
+    {
+        float lineLength = _markerSize * 0.6f;
+        float lineWidth = 0.02f;
+        
+        // 가로선
+        GameObject horizontal = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        horizontal.name = "CrossHorizontal";
+        horizontal.transform.SetParent(parent);
+        horizontal.transform.localPosition = Vector3.up * 0.01f;
+        horizontal.transform.localScale = new Vector3(lineLength, 0.01f, lineWidth);
+        Destroy(horizontal.GetComponent<Collider>());
+        
+        MeshRenderer hRenderer = horizontal.GetComponent<MeshRenderer>();
+        Material lineMaterial = new Material(Shader.Find("Sprites/Default"));
+        lineMaterial.color = new Color(1f, 1f, 1f, 0.8f);
+        hRenderer.material = lineMaterial;
+        
+        // 세로선
+        GameObject vertical = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        vertical.name = "CrossVertical";
+        vertical.transform.SetParent(parent);
+        vertical.transform.localPosition = Vector3.up * 0.01f;
+        vertical.transform.localScale = new Vector3(lineWidth, 0.01f, lineLength);
+        Destroy(vertical.GetComponent<Collider>());
+        
+        MeshRenderer vRenderer = vertical.GetComponent<MeshRenderer>();
+        vRenderer.material = lineMaterial;
     }
     
     /// <summary>
@@ -704,10 +793,11 @@ public class GrenadeManager : MonoBehaviour
         // 위치 설정 (약간 위로 올려서 z-fighting 방지)
         _impactMarkerTransform.position = _currentImpactPoint + _currentImpactNormal * 0.01f;
         
-        // 회전 설정 - 법선 벡터를 기준으로 바닥에 평평하게 놓이도록
-        // Quaternion.FromToRotation을 사용하여 위쪽 벡터를 법선 벡터로 회전
+        // 전체 마커 회전 설정 - 법선 벡터를 기준으로 바닥에 평평하게 놓이도록
         Quaternion surfaceRotation = Quaternion.FromToRotation(Vector3.up, _currentImpactNormal);
         _impactMarkerTransform.rotation = surfaceRotation;
+        
+        // 내부 원은 DOTween에서 로컬 Y축 회전 (Update에서 하지 않음 - DOTween이 담당)
     }
     
     /// <summary>
@@ -719,32 +809,38 @@ public class GrenadeManager : MonoBehaviour
         
         // 기존 애니메이션 정리
         _markerPulseSequence?.Kill();
-        _markerRotationTween?.Kill();
+        _innerRotationTween?.Kill();
         
-        // 펄스 스케일 애니메이션
-        _markerPulseSequence = DOTween.Sequence();
+        // 펄스 스케일 애니메이션 (외곽 링에 적용)
+        if (_outerRingTransform != null)
+        {
+            _markerPulseSequence = DOTween.Sequence();
+            
+            Vector3 originalScale = new Vector3(_markerSize, 0.01f, _markerSize);
+            Vector3 pulseScale = originalScale * _markerPulseScale;
+            
+            // 외곽 링 스케일 펄스
+            _markerPulseSequence.Append(
+                _outerRingTransform.DOScale(pulseScale, _markerPulseDuration * 0.5f)
+                    .SetEase(Ease.OutQuad)
+            );
+            
+            _markerPulseSequence.Append(
+                _outerRingTransform.DOScale(originalScale, _markerPulseDuration * 0.5f)
+                    .SetEase(Ease.InQuad)
+            );
+            
+            _markerPulseSequence.SetLoops(-1, LoopType.Restart);
+        }
         
-        Vector3 originalScale = new Vector3(_markerSize, 0.01f, _markerSize);
-        Vector3 pulseScale = originalScale * _markerPulseScale;
-        
-        // 스케일 펄스
-        _markerPulseSequence.Append(
-            _impactMarkerTransform.DOScale(pulseScale, _markerPulseDuration * 0.5f)
-                .SetEase(Ease.OutQuad)
-        );
-        
-        _markerPulseSequence.Append(
-            _impactMarkerTransform.DOScale(originalScale, _markerPulseDuration * 0.5f)
-                .SetEase(Ease.InQuad)
-        );
-        
-        _markerPulseSequence.SetLoops(-1, LoopType.Restart);
-        
-        // Y축 회전 애니메이션 (로컬 회전)
-        _markerRotationTween = _impactMarkerTransform
-            .DOLocalRotate(new Vector3(0, 360, 0), 360f / _markerRotationSpeed, RotateMode.LocalAxisAdd)
-            .SetEase(Ease.Linear)
-            .SetLoops(-1, LoopType.Incremental);
+        // 내부 원만 로컬 Y축 회전 (바닥에 붙어서 평평하게 돌아감)
+        if (_innerCircleTransform != null)
+        {
+            _innerRotationTween = _innerCircleTransform
+                .DOLocalRotate(new Vector3(0, 360, 0), 360f / _innerRotationSpeed, RotateMode.LocalAxisAdd)
+                .SetEase(Ease.Linear)
+                .SetLoops(-1, LoopType.Incremental);
+        }
     }
     
     /// <summary>
@@ -752,14 +848,21 @@ public class GrenadeManager : MonoBehaviour
     /// </summary>
     private void RestartMarkerAnimation()
     {
-        if (_impactMarkerTransform == null) return;
+        if (_outerRingTransform != null)
+        {
+            // 외곽 링 스케일 리셋
+            _outerRingTransform.localScale = new Vector3(_markerSize, 0.01f, _markerSize);
+        }
         
-        // 스케일 리셋
-        _impactMarkerTransform.localScale = new Vector3(_markerSize, 0.01f, _markerSize);
+        if (_innerCircleTransform != null)
+        {
+            // 내부 원 로컬 회전 리셋
+            _innerCircleTransform.localRotation = Quaternion.identity;
+        }
         
         // 애니메이션 재생
         _markerPulseSequence?.Restart();
-        _markerRotationTween?.Restart();
+        _innerRotationTween?.Restart();
     }
     
     #endregion
