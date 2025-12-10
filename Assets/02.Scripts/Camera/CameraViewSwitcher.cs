@@ -49,11 +49,11 @@ public class CameraViewSwitcher : MonoBehaviour
     private Tweener gunPositionTween;
     private Tweener gunScaleTween;
 
-    
     private CameraRotate cameraRotate;
-private Vector3 originalGunScale;
+    private CameraZoom cameraZoom;
+    private Vector3 originalGunScale;
 
-private void Awake()
+    private void Awake()
     {
         // 자동 참조 설정
         if (playerTransform == null)
@@ -72,6 +72,7 @@ private void Awake()
 
         mainCamera = cameraTransform?.GetComponent<Camera>();
         cameraRotate = cameraTransform?.GetComponent<CameraRotate>();
+        cameraZoom = cameraTransform?.GetComponent<CameraZoom>();
 
         // GunHolder 자동 탐색
         if (gunHolder == null && cameraTransform != null)
@@ -238,13 +239,16 @@ private void Awake()
     /// <summary>
     /// 시점 변경 완료 시 호출되는 콜백
     /// </summary>
-protected virtual void OnViewChanged(CameraView newView)
+    protected virtual void OnViewChanged(CameraView newView)
     {
         // 회전값 동기화
         if (cameraRotate != null)
         {
             cameraRotate.SyncRotation();
         }
+
+        // 줌 상태 리셋 및 FOV 업데이트
+        cameraZoom?.OnViewSwitched();
 
         Debug.Log($"Camera view changed to: {newView}");
     }
