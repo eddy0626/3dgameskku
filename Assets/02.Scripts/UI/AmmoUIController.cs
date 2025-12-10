@@ -11,7 +11,14 @@ public class AmmoUIController : MonoBehaviour
     [Header("UI 참조")]
     [SerializeField] private TMP_Text _magazineText;      // 탄창 텍스트 (30/30)
     [SerializeField] private TMP_Text _totalAmmoText;     // 보유 탄약 텍스트 (| 120)
-    [SerializeField] private GameObject _reloadingIndicator; // 재장전 표시
+    [SerializeField] private GameObject _reloadingIndicator;
+    [SerializeField] private TMP_Text _fireModeText;         // 발사 모드 텍스트 (AUTO/SEMI/BURST)
+ // 재장전 표시
+    
+    [Header("발사 모드 색상")]
+    [SerializeField] private Color _semiColor = new Color(0.5f, 1f, 0.5f);
+    [SerializeField] private Color _burstColor = new Color(1f, 1f, 0.5f);
+    [SerializeField] private Color _autoColor = new Color(1f, 0.5f, 0.5f);
     
     [Header("애니메이션 설정")]
     [SerializeField] private float _punchScale = 1.2f;
@@ -23,11 +30,13 @@ public class AmmoUIController : MonoBehaviour
     // 참조
     private PlayerShooting _playerShooting;
     private WeaponBase _currentWeapon;
+    private FirearmWeapon _currentFirearm;
     
     // 캐시
     private int _lastMagazine = -1;
     private int _lastAmmo = -1;
     private bool _lastReloading = false;
+    private FireMode _lastFireMode = FireMode.Semi;
     
 private void Start()
     {
@@ -60,6 +69,15 @@ private void Start()
             if (totalTransform != null)
             {
                 _totalAmmoText = totalTransform.GetComponent<TMP_Text>();
+            }
+        }
+        
+        if (_fireModeText == null)
+        {
+            Transform fireModeTransform = transform.Find("FireModeText");
+            if (fireModeTransform != null)
+            {
+                _fireModeText = fireModeTransform.GetComponent<TMP_Text>();
             }
         }
         
@@ -102,6 +120,7 @@ private void Start()
         
         if (_currentWeapon == null) return;
         
+        UpdateFirearmReference();
         UpdateAmmoDisplay();
         UpdateReloadingState();
     }
@@ -243,4 +262,96 @@ private void Start()
         _lastAmmo = -1;
         _lastReloading = false;
     }
+
+/// <summary>
+    /// FirearmWeapon 참조 업데이트 및 이벤트 구독
+    /// </summary>
+    private void UpdateFirearmReference()
+    {
+        FirearmWeapon newFirearm = _currentWeapon as FirearmWeapon;
+        
+        if (newFirearm != _currentFirearm)
+        {
+            if (_currentFirearm != null)
+                _currentFirearm.OnFireModeChanged -= OnFireModeChanged;
+            
+            _currentFirearm = newFirearm;
+            
+            if (_currentFirearm != null)
+            {
+                _currentFirearm.OnFireModeChanged += OnFireModeChanged;
+                UpdateFireModeDisplay(_currentFirearm.CurrentFireMode, false);
+            }
+            else if (_fireModeText != null)
+            {
+                _fireModeText.gameObject.SetActive(false);
+            }
+        }
+    }
+
+/// <summary>
+    /// 발사 모드 변경 이벤트 핸들러
+    /// </summary>
+    private void OnFireModeChanged(FireMode newMode)
+    {
+        UpdateFireModeDisplay(newMode, true);
+    }
+
+/// <summary>
+    /// 발사 모드 UI 업데이트
+    /// </summary>
+    private void UpdateFireModeDisplay(FireMode mode, bool animate)
+    {
+        if (_fireModeText == null) return;
+        
+        _fireModeText.gameObject.SetActive(true);
+        
+        switch (mode)
+        {
+            case FireMode.Semi:
+                _fireModeText.text = "SEMI";
+                _fireModeText.color = _semiColor;
+                break;
+            case FireMode.Burst:
+                _fireModeText.text = "BURST";
+                _fireModeText.color = _burstColor;
+                break;
+            case FireMode.Auto:
+                _fireModeText.text = "AUTO";
+                _fireModeText.color = _autoColor;
+                break;
+        }
+        
+        if (animate)
+            PlayFireModeChangeAnimation();
+        
+        _lastFireMode = mode;
+    }
+
+/// <summary>
+    /// 발사 모드 변경 애니메이션
+    /// </summary>
+    private void PlayFireModeChangeAnimation()
+    {
+        if (_fireModeText == null) return;
+        
+        _fireModeText.transform.DOKill();
+        _fireModeText.transform.localScale = Vector3.one;
+        _fireModeText.transform.DOPunchScale(Vector3.one * 0.3f, 0.2f, 2, 0.5f);
+        
+        _fireModeText.DOKill();
+        _fireModeText.alpha = 1f;
+        _fireModeText.DOFade(0.7f, 0.1f).SetLoops(2, LoopType.Yoyo);
+    }
+
+private void OnDestroy()
+    {
+        if (_currentFirearm != null)
+            _currentFirearm.OnFireModeChanged -= OnFireModeChanged;
+    }
+
+
+
+
+
 }

@@ -22,8 +22,8 @@ MonoBehaviour:
   magazineSize: 30
   maxAmmo: 150
   reloadTime: 2.2
-  verticalRecoil: 3.72
-  horizontalRecoil: 1.79
+  verticalRecoil: 4.06
+  horizontalRecoil: 2.1
   recoilSnappiness: 7
   recoilRecoverySpeed: 6
   maxVerticalRecoil: 10
