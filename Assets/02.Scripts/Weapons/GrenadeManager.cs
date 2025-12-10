@@ -43,6 +43,7 @@ public class GrenadeManager : MonoBehaviour
     [Header("착탄 마커 설정")]
     [SerializeField] private bool _showImpactMarker = true;
     [SerializeField] private GameObject _impactMarkerPrefab;
+    [SerializeField] private bool _forceDefaultMarker = true; // 프리팹 무시하고 기본 마커 강제 생성
     [SerializeField] private float _markerSize = 2f;
     [SerializeField] private Color _markerColor = new Color(1f, 0.3f, 0f, 0.7f);
     [SerializeField] private float _maxSurfaceAngle = 45f; // 바닥으로 인식할 최대 각도
@@ -459,6 +460,7 @@ public class GrenadeManager : MonoBehaviour
     /// </summary>
     private void SetupTrajectoryLine()
     {
+        // 궤적 라인이 없거나 강제 재생성일 경우 새로 생성
         if (_trajectoryLine == null && _showTrajectory)
         {
             GameObject lineObj = new GameObject("GrenadeTrajectory");
@@ -631,15 +633,24 @@ public class GrenadeManager : MonoBehaviour
     {
         if (!_showImpactMarker) return;
         
-        // 프리팹이 없으면 기본 원형 마커 생성
-        if (_impactMarkerPrefab != null)
-        {
-            _impactMarkerInstance = Instantiate(_impactMarkerPrefab);
-        }
-        else
+        // 강제 기본 마커 사용 또는 프리팹이 없으면 기본 원형 마커 생성
+        if (_forceDefaultMarker || _impactMarkerPrefab == null)
         {
             // 기본 원형 마커 생성 (외곽 고정, 내부 회전 구조)
             _impactMarkerInstance = CreateDefaultMarker();
+            Debug.Log("GrenadeManager: 새 착탄 마커 구조 생성 (OuterRing + InnerCircle)");
+        }
+        else
+        {
+            _impactMarkerInstance = Instantiate(_impactMarkerPrefab);
+            
+            // 기존 프리팹에서 참조 찾기 시도
+            _outerRingTransform = _impactMarkerInstance.transform.Find("OuterRing");
+            Transform innerContainer = _impactMarkerInstance.transform.Find("InnerContainer");
+            if (innerContainer != null)
+            {
+                _innerCircleTransform = innerContainer;
+            }
         }
         
         _impactMarkerTransform = _impactMarkerInstance.transform;
