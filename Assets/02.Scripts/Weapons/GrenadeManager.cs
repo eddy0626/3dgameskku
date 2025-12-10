@@ -25,7 +25,14 @@ public class GrenadeManager : MonoBehaviour
     [SerializeField] private bool _enableCooking = true;
     [SerializeField] private float _maxCookTime = 2.5f;
     
-    [Header("궤적 표시")]
+        [Header("착탄 마커")]
+    [SerializeField] private bool _showImpactMarker = true;
+    [SerializeField] private GrenadeImpactMarker _impactMarkerPrefab;
+    private GrenadeImpactMarker _impactMarker;
+    private Vector3 _predictedImpactPoint;
+    private Vector3 _predictedImpactNormal;
+    
+[Header("궤적 표시")]
     [SerializeField] private bool _showTrajectory = true;
     [SerializeField] private LineRenderer _trajectoryLine;
     [SerializeField] private int _trajectoryResolution = 30;
@@ -89,6 +96,9 @@ public class GrenadeManager : MonoBehaviour
         
         // 궤적 라인 설정
         SetupTrajectoryLine();
+        // 착탄 마커 초기화
+        InitializeImpactMarker();
+
     }
     
     private void Start()
@@ -114,6 +124,9 @@ public class GrenadeManager : MonoBehaviour
             {
                 _trajectoryLine.enabled = false;
             }
+        // 착탄 마커 업데이트
+        UpdateImpactMarker();
+
         }
         
         // 쿠킹 진행률 이벤트 발생
@@ -496,6 +509,114 @@ public class GrenadeManager : MonoBehaviour
             {
                 ThrowGrenade();
             }
+        }
+    }
+    
+    #endregion
+
+    #region Impact Marker
+    
+    /// <summary>
+    /// 착탄 마커 초기화
+    /// </summary>
+    private void InitializeImpactMarker()
+    {
+        if (!_showImpactMarker || _impactMarkerPrefab == null) return;
+        
+        _impactMarker = Instantiate(_impactMarkerPrefab);
+        _impactMarker.gameObject.SetActive(false);
+        
+        if (_grenadeData != null)
+        {
+            _impactMarker.SetSize(_grenadeData.explosionRadius);
+        }
+    }
+    
+    /// <summary>
+    /// 착탄 마커 업데이트
+    /// </summary>
+/// <summary>
+    /// 착탄 마커 업데이트 (수평면에만 표시)
+    /// </summary>
+    private void UpdateImpactMarker()
+    {
+        if (!_showImpactMarker || _impactMarker == null) return;
+        
+        bool shouldShow = _grenadeReady && (_isCooking || _currentGrenades > 0);
+        
+        if (shouldShow && _trajectoryLine != null && _trajectoryLine.enabled)
+        {
+            CalculateImpactPoint();
+            
+            if (_predictedImpactPoint != Vector3.zero)
+            {
+                // UpdatePosition이 false를 반환하면 수평면이 아님 -> 마커 숨김
+                bool isValidSurface = _impactMarker.UpdatePosition(_predictedImpactPoint, _predictedImpactNormal);
+                
+                if (isValidSurface)
+                {
+                    _impactMarker.SetCookingProgress(CookProgress);
+                    _impactMarker.Show();
+                }
+                else
+                {
+                    _impactMarker.Hide();
+                }
+            }
+            else
+            {
+                _impactMarker.Hide();
+            }
+        }
+        else
+        {
+            _impactMarker.Hide();
+        }
+    }
+    
+    /// <summary>
+    /// 착탄 지점 계산
+    /// </summary>
+    private void CalculateImpactPoint()
+    {
+        if (_throwPoint == null || _playerCamera == null || _grenadeData == null) return;
+        
+        Vector3 startPosition = _throwPoint.position;
+        Vector3 startVelocity = _playerCamera.transform.forward * _grenadeData.throwForce;
+        startVelocity.y += _grenadeData.upwardForce;
+        
+        Vector3 previousPoint = startPosition;
+        float timeStep = 0.05f;
+        float maxTime = 5f;
+        
+        for (float t = timeStep; t < maxTime; t += timeStep)
+        {
+            Vector3 currentPoint = startPosition + startVelocity * t + 0.5f * Physics.gravity * t * t;
+            Vector3 direction = currentPoint - previousPoint;
+            float distance = direction.magnitude;
+            
+            if (Physics.Raycast(previousPoint, direction.normalized, out RaycastHit hit, distance))
+            {
+                _predictedImpactPoint = hit.point;
+                _predictedImpactNormal = hit.normal;
+                return;
+            }
+            
+            previousPoint = currentPoint;
+        }
+        
+        _predictedImpactPoint = Vector3.zero;
+        _predictedImpactNormal = Vector3.up;
+    }
+    
+    /// <summary>
+    /// 마커 숨기기
+    /// </summary>
+    private void HideImpactMarker()
+    {
+        if (_impactMarker != null)
+        {
+            _impactMarker.Hide();
         }
     }
     

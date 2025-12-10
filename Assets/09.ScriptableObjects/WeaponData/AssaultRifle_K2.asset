@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weaponName: K2 Assault Rifle
   weaponIcon: {fileID: 0}
+  weaponType: 1
   fireRate: 12
   damage: 28
   range: 100
@@ -21,8 +22,8 @@ MonoBehaviour:
   magazineSize: 30
   maxAmmo: 150
   reloadTime: 2.2
-  verticalRecoil: 3
-  horizontalRecoil: 1.5
+  verticalRecoil: 3.72
+  horizontalRecoil: 1.79
   recoilSnappiness: 7
   recoilRecoverySpeed: 6
   maxVerticalRecoil: 10
