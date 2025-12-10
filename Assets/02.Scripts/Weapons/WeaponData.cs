@@ -11,6 +11,10 @@ public class WeaponData : ScriptableObject
     public string weaponName = "New Weapon";
     public Sprite weaponIcon;
     
+    [Tooltip("무기 타입 (머즐플래시 이펙트 선택에 사용)")]
+    public WeaponType weaponType = WeaponType.Rifle;
+    
+    
     [Header("발사 설정")]
     [Tooltip("초당 발사 속도")]
     public float fireRate = 10f;

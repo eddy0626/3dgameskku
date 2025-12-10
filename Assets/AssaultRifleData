@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4640a306f8b609141b997aed97d7374e, type: 3}
+  m_Name: AssaultRifleData
+  m_EditorClassIdentifier: 
+  weaponName: New Weapon
+  weaponIcon: {fileID: 0}
+  fireRate: 10
+  damage: 25
+  range: 100
+  fireMode: 1
+  magazineSize: 30
+  maxAmmo: 120
+  reloadTime: 2
+  verticalRecoil: 1.5
+  horizontalRecoil: 0.5
+  recoilSnappiness: 6
+  recoilRecoverySpeed: 5
+  maxVerticalRecoil: 12
+  maxHorizontalRecoil: 5
+  crosshairSpreadPerShot: 5
+  maxCrosshairSpread: 30
+  crosshairRecoverySpeed: 15
+  baseCrosshairSize: 20
+  gunKickbackDistance: 0.03
+  gunKickbackRotation: 5
+  gunKickRecoverySpeed: 15
+  baseBulletSpread: 0.5
+  bulletSpreadPerShot: 0.3
+  maxBulletSpread: 8
+  bulletSpreadRecoverySpeed: 10
+  movementSpreadMultiplier: 1.5
+  airborneSpreadMultiplier: 2.5
+  crouchSpreadMultiplier: 0.7
+  adsSpreadMultiplier: 0.3
+  screenShakeIntensity: 0.02
+  screenShakeDuration: 0.05
+  adsPosition: {x: 0, y: -0.1, z: 0.1}
+  adsSpeed: 10
+  adsRecoilMultiplier: 0.6
+  fireType: 0
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 100
+  projectileUseGravity: 0
+  muzzleFlashPrefab: {fileID: 0}
+  bulletHolePrefab: {fileID: 0}
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}

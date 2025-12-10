@@ -16,17 +16,39 @@ public class PlayerShooting : MonoBehaviour
     private WeaponData _weaponData;
     private bool _isFiring;
     
-    private void Start()
+private void Start()
     {
         // 무기 자동 찾기
         if (_currentWeapon == null)
         {
+            // 먼저 자식에서 찾기
             _currentWeapon = GetComponentInChildren<FirearmWeapon>();
+            
+            // 없으면 GunHolder에서 찾기
+            if (_currentWeapon == null)
+            {
+                Transform gunHolder = Camera.main?.transform.Find("GunHolder");
+                if (gunHolder != null)
+                {
+                    _currentWeapon = gunHolder.GetComponentInChildren<FirearmWeapon>();
+                }
+            }
+            
+            // 그래도 없으면 씬 전체에서 찾기
+            if (_currentWeapon == null)
+            {
+                _currentWeapon = FindFirstObjectByType<FirearmWeapon>();
+            }
         }
         
         if (_currentWeapon != null)
         {
             _weaponData = _currentWeapon.WeaponData;
+            Debug.Log($"[PlayerShooting] Weapon found: {_currentWeapon.name}, WeaponData: {(_weaponData != null ? _weaponData.weaponName : "null")}");
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerShooting] No weapon found!");
         }
     }
     

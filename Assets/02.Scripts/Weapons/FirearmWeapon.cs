@@ -286,14 +286,40 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 머즐 플래시 재생
     /// </summary>
+    /// <summary>
+    /// 머즐 플래시 재생 (War FX 연동)
+    /// </summary>
     private void PlayMuzzleFlash()
     {
+        // MuzzleFlashController 사용 (우선)
+        if (MuzzleFlashController.Instance != null && _muzzlePoint != null)
+        {
+            // WeaponData에 커스텀 머즐플래시 프리팩이 있으면 사용
+            if (_weaponData.muzzleFlashPrefab != null)
+            {
+                MuzzleFlashController.Instance.PlayCustomMuzzleFlash(
+                    _weaponData.muzzleFlashPrefab, 
+                    _muzzlePoint
+                );
+            }
+            else
+            {
+                // 기본 머즐플래시 (무기 타입별)
+                MuzzleFlashController.Instance.PlayMuzzleFlash(
+                    _muzzlePoint, 
+                    _weaponData.weaponType
+                );
+            }
+            return;
+        }
+        
+        // 폴백: 기존 파티클 시스템 사용
         if (_muzzleFlashParticle != null)
         {
             _muzzleFlashParticle.Play();
         }
         
-        // 프리팹 방식
+        // 폴백: 프리팩 방식
         if (_weaponData.muzzleFlashPrefab != null && _muzzlePoint != null)
         {
             GameObject flash = Instantiate(

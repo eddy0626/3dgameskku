@@ -29,14 +29,33 @@ public abstract class WeaponBase : MonoBehaviour
     public bool IsReloading => _isReloading;
     public bool CanFire => !_isReloading && _currentMagazine > 0 && Time.time >= _nextFireTime;
     
-    protected virtual void Awake()
+protected virtual void Awake()
     {
+        // AudioSource 자동 찾기/추가
         if (_audioSource == null)
         {
             _audioSource = GetComponent<AudioSource>();
             if (_audioSource == null)
             {
                 _audioSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+        
+        // MuzzlePoint 자동 찾기
+        if (_muzzlePoint == null)
+        {
+            _muzzlePoint = transform.Find("MuzzlePoint");
+            if (_muzzlePoint == null)
+            {
+                // 자식 중에서 MuzzlePoint 이름을 가진 오브젝트 찾기
+                foreach (Transform child in GetComponentsInChildren<Transform>())
+                {
+                    if (child.name.Contains("Muzzle") || child.name.Contains("muzzle"))
+                    {
+                        _muzzlePoint = child;
+                        break;
+                    }
+                }
             }
         }
     }
