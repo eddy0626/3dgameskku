@@ -15,6 +15,8 @@ public class GrenadeManager : MonoBehaviour
     [Header("투척 설정")]
     [SerializeField] private Transform _throwPoint;
     [SerializeField] private Camera _playerCamera;
+    [SerializeField] private float _maxAimDistance = 100f; // 최대 조준 거리
+    [SerializeField] private LayerMask _aimLayerMask = -1; // 조준 레이캐스트 레이어
     
     [Header("인벤토리")]
     [SerializeField] private int _startGrenades = 5;
@@ -25,14 +27,14 @@ public class GrenadeManager : MonoBehaviour
     [SerializeField] private bool _enableCooking = true;
     [SerializeField] private float _maxCookTime = 2.5f;
     
-        [Header("착탄 마커")]
+    [Header("착탄 마커")]
     [SerializeField] private bool _showImpactMarker = true;
     [SerializeField] private GrenadeImpactMarker _impactMarkerPrefab;
     private GrenadeImpactMarker _impactMarker;
     private Vector3 _predictedImpactPoint;
     private Vector3 _predictedImpactNormal;
     
-[Header("궤적 표시")]
+    [Header("궤적 표시")]
     [SerializeField] private bool _showTrajectory = true;
     [SerializeField] private LineRenderer _trajectoryLine;
     [SerializeField] private int _trajectoryResolution = 30;
@@ -98,7 +100,6 @@ public class GrenadeManager : MonoBehaviour
         SetupTrajectoryLine();
         // 착탄 마커 초기화
         InitializeImpactMarker();
-
     }
     
     private void Start()
@@ -124,9 +125,8 @@ public class GrenadeManager : MonoBehaviour
             {
                 _trajectoryLine.enabled = false;
             }
-        // 착탄 마커 업데이트
-        UpdateImpactMarker();
-
+            // 착탄 마커 업데이트
+            UpdateImpactMarker();
         }
         
         // 쿠킹 진행률 이벤트 발생
@@ -157,6 +157,49 @@ public class GrenadeManager : MonoBehaviour
             Instance = null;
         }
     }
+
+    #region Aim Point Calculation
+    
+    /// <summary>
+    /// 화면 중앙에서 Raycast를 쏴서 실제 조준점을 계산
+    /// FPS/TPS 모든 시점에서 정확한 조준 지원
+    /// </summary>
+    private Vector3 GetAimPoint()
+    {
+        if (_playerCamera == null) return _throwPoint.position + _throwPoint.forward * _maxAimDistance;
+        
+        // 화면 중앙에서 Ray 생성
+        Ray aimRay = _playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        
+        // Raycast로 조준점 찾기
+        if (Physics.Raycast(aimRay, out RaycastHit hit, _maxAimDistance, _aimLayerMask))
+        {
+            return hit.point;
+        }
+        
+        // 아무것도 맞지 않으면 최대 거리 지점 반환
+        return aimRay.origin + aimRay.direction * _maxAimDistance;
+    }
+    
+    /// <summary>
+    /// 투척 포인트에서 조준점을 향한 방향 계산
+    /// </summary>
+    private Vector3 GetThrowDirection()
+    {
+        Vector3 aimPoint = GetAimPoint();
+        Vector3 throwDirection = (aimPoint - _throwPoint.position).normalized;
+        
+        // 방향이 너무 아래를 향하지 않도록 최소 각도 제한
+        if (throwDirection.y < -0.9f)
+        {
+            throwDirection.y = -0.9f;
+            throwDirection = throwDirection.normalized;
+        }
+        
+        return throwDirection;
+    }
+    
+    #endregion
 
     #region Object Pooling
     
@@ -355,6 +398,7 @@ public class GrenadeManager : MonoBehaviour
     
     /// <summary>
     /// 수류탄 생성 및 발사 (ObjectPool 사용)
+    /// 카메라 Raycast 기반으로 FPS/TPS 모든 시점에서 정확한 방향 지원
     /// </summary>
     private void SpawnGrenade(float cookTime)
     {
@@ -364,8 +408,8 @@ public class GrenadeManager : MonoBehaviour
             return;
         }
         
-        // 투척 방향 계산 (카메라 전방)
-        Vector3 throwDirection = _playerCamera.transform.forward;
+        // 투척 방향 계산 (카메라 Raycast 기반 조준점 사용)
+        Vector3 throwDirection = GetThrowDirection();
         
         // 풀에서 수류탄 가져오기
         Grenade grenade = _grenadePool.Get();
@@ -408,7 +452,7 @@ public class GrenadeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// 궤적 라인 업데이트
+    /// 궤적 라인 업데이트 (카메라 Raycast 기반 조준점 사용)
     /// </summary>
     private void UpdateTrajectoryLine()
     {
@@ -416,7 +460,10 @@ public class GrenadeManager : MonoBehaviour
         
         Vector3[] points = new Vector3[_trajectoryResolution];
         Vector3 startPos = _throwPoint.position;
-        Vector3 startVelocity = _playerCamera.transform.forward * _grenadeData.throwForce;
+        
+        // 조준점 기반 투척 방향 계산
+        Vector3 throwDirection = GetThrowDirection();
+        Vector3 startVelocity = throwDirection * _grenadeData.throwForce;
         startVelocity.y += _grenadeData.upwardForce;
         
         float timeStep = 0.1f;
@@ -533,9 +580,6 @@ public class GrenadeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// 착탄 마커 업데이트
-    /// </summary>
-/// <summary>
     /// 착탄 마커 업데이트 (수평면에만 표시)
     /// </summary>
     private void UpdateImpactMarker()
@@ -575,14 +619,17 @@ public class GrenadeManager : MonoBehaviour
     }
     
     /// <summary>
-    /// 착탄 지점 계산
+    /// 착탄 지점 계산 (카메라 Raycast 기반 조준점 사용)
     /// </summary>
     private void CalculateImpactPoint()
     {
         if (_throwPoint == null || _playerCamera == null || _grenadeData == null) return;
         
         Vector3 startPosition = _throwPoint.position;
-        Vector3 startVelocity = _playerCamera.transform.forward * _grenadeData.throwForce;
+        
+        // 조준점 기반 투척 방향 계산
+        Vector3 throwDirection = GetThrowDirection();
+        Vector3 startVelocity = throwDirection * _grenadeData.throwForce;
         startVelocity.y += _grenadeData.upwardForce;
         
         Vector3 previousPoint = startPosition;
