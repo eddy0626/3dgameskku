@@ -129,6 +129,9 @@ public class FirearmWeapon : WeaponBase
 /// <summary>
     /// 발사체(총알) 발사
     /// </summary>
+/// <summary>
+    /// 발사체(총알) 발사
+    /// </summary>
     private void FireProjectile()
     {
         if (_weaponData.projectilePrefab == null)
@@ -143,10 +146,11 @@ public class FirearmWeapon : WeaponBase
             return;
         }
         
-        // 발사 방향 계산 (카메라 중앙 방향)
-        Vector3 shootDirection = _cameraTransform != null 
-            ? _cameraTransform.forward 
-            : _muzzlePoint.forward;
+        // 크로스헤어(화면 중앙)가 가리키는 목표 지점 계산
+        Vector3 targetPoint = GetCrosshairTargetPoint();
+        
+        // MuzzlePoint에서 목표 지점을 향한 발사 방향 계산
+        Vector3 shootDirection = (targetPoint - _muzzlePoint.position).normalized;
         
         // 발사체 생성
         GameObject projectileObj = Instantiate(
@@ -180,6 +184,32 @@ public class FirearmWeapon : WeaponBase
         
         Debug.Log($"[{_weaponData.weaponName}] Projectile fired!");
     }
+
+
+    /// <summary>
+    /// 크로스헤어(화면 중앙)가 가리키는 월드 좌표 목표 지점 반환
+    /// </summary>
+    private Vector3 GetCrosshairTargetPoint()
+    {
+        if (_cameraTransform == null) 
+        {
+            return _muzzlePoint.position + _muzzlePoint.forward * _weaponData.range;
+        }
+        
+        Ray ray = new Ray(_cameraTransform.position, _cameraTransform.forward);
+        RaycastHit hit;
+        
+        if (Physics.Raycast(ray, out hit, _weaponData.range, _hitLayers))
+        {
+            return hit.point;
+        }
+        else
+        {
+            // 아무것도 맞지 않으면 최대 사거리 지점 반환
+            return _cameraTransform.position + _cameraTransform.forward * _weaponData.range;
+        }
+    }
+
 
     
     /// <summary>
