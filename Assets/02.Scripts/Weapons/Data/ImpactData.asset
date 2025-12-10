@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e36f128fa029ff44abf4ff5043c8e33, type: 3}
+  m_Name: ImpactData
+  m_EditorClassIdentifier: 
+  surfaceType: 0
+  particlePrefab: {fileID: 100002, guid: 54dd9cb5740188a488b8baebbf19207c, type: 3}
+  decalPrefab: {fileID: 0}
+  particleLifetime: 1
+  decalLifetime: 10
+  decalSize: 0.1
+  impactSounds: []
+  volume: 1
+  impactForce: 10

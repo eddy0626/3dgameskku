@@ -139,8 +139,19 @@ public class Projectile : MonoBehaviour
     /// <summary>
     /// 임팩트 이펙트 생성
     /// </summary>
+/// <summary>
+    /// 임팩트 이펙트 생성
+    /// </summary>
     private void SpawnImpactEffect(RaycastHit hit)
     {
+        // ImpactEffectManager 사용 (우선)
+        if (ImpactEffectManager.Instance != null)
+        {
+            ImpactEffectManager.Instance.PlayImpact(hit);
+            return;
+        }
+        
+        // 폴백: 기존 방식
         if (_impactEffectPrefab != null)
         {
             GameObject effect = Instantiate(

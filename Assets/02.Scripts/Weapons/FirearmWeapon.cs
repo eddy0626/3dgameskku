@@ -215,6 +215,9 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 피격 처리
     /// </summary>
+/// <summary>
+    /// 피격 처리
+    /// </summary>
     private void OnHit(RaycastHit hit)
     {
         Debug.Log($"[{_weaponData.weaponName}] Hit: {hit.collider.name} at {hit.point}");
@@ -226,8 +229,16 @@ public class FirearmWeapon : WeaponBase
             damageable.TakeDamage(_weaponData.damage, hit.point, hit.normal);
         }
         
-        // 탄흔 생성
-        SpawnBulletHole(hit);
+        // 임팩트 이펙트 재생 (ImpactEffectManager 사용)
+        if (ImpactEffectManager.Instance != null)
+        {
+            ImpactEffectManager.Instance.PlayImpact(hit);
+        }
+        else
+        {
+            // 폴백: 기존 탄흔 생성
+            SpawnBulletHole(hit);
+        }
     }
     
     /// <summary>
