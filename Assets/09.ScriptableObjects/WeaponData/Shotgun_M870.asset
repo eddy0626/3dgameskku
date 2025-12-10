@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4640a306f8b609141b997aed97d7374e, type: 3}
+  m_Name: Shotgun_M870
+  m_EditorClassIdentifier: 
+  weaponName: M870 Shotgun
+  weaponIcon: {fileID: 0}
+  fireRate: 1.2
+  damage: 15
+  range: 30
+  fireMode: 0
+  magazineSize: 8
+  maxAmmo: 32
+  reloadTime: 0.6
+  verticalRecoil: 3.5
+  horizontalRecoil: 1
+  recoilSnappiness: 8
+  recoilRecoverySpeed: 4
+  maxVerticalRecoil: 15
+  maxHorizontalRecoil: 6
+  crosshairSpreadPerShot: 15
+  maxCrosshairSpread: 50
+  crosshairRecoverySpeed: 10
+  baseCrosshairSize: 30
+  gunKickbackDistance: 0.08
+  gunKickbackRotation: 10
+  gunKickRecoverySpeed: 8
+  baseBulletSpread: 3
+  bulletSpreadPerShot: 0.5
+  maxBulletSpread: 12
+  bulletSpreadRecoverySpeed: 6
+  movementSpreadMultiplier: 1.6
+  airborneSpreadMultiplier: 3
+  crouchSpreadMultiplier: 0.8
+  adsSpreadMultiplier: 0.5
+  screenShakeIntensity: 0.05
+  screenShakeDuration: 0.08
+  adsPosition: {x: 0, y: -0.1, z: 0.15}
+  adsSpeed: 8
+  adsRecoilMultiplier: 0.8
+  fireType: 0
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 80
+  projectileUseGravity: 0
+  muzzleFlashPrefab: {fileID: 0}
+  bulletHolePrefab: {fileID: 0}
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}

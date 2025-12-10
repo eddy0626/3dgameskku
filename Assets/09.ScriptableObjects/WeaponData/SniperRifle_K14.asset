@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4640a306f8b609141b997aed97d7374e, type: 3}
+  m_Name: SniperRifle_K14
+  m_EditorClassIdentifier: 
+  weaponName: K14 Sniper Rifle
+  weaponIcon: {fileID: 0}
+  fireRate: 0.8
+  damage: 120
+  range: 300
+  fireMode: 0
+  magazineSize: 5
+  maxAmmo: 25
+  reloadTime: 3
+  verticalRecoil: 4
+  horizontalRecoil: 0.5
+  recoilSnappiness: 6
+  recoilRecoverySpeed: 3
+  maxVerticalRecoil: 18
+  maxHorizontalRecoil: 4
+  crosshairSpreadPerShot: 20
+  maxCrosshairSpread: 60
+  crosshairRecoverySpeed: 8
+  baseCrosshairSize: 25
+  gunKickbackDistance: 0.1
+  gunKickbackRotation: 12
+  gunKickRecoverySpeed: 6
+  baseBulletSpread: 2
+  bulletSpreadPerShot: 1
+  maxBulletSpread: 10
+  bulletSpreadRecoverySpeed: 4
+  movementSpreadMultiplier: 2
+  airborneSpreadMultiplier: 4
+  crouchSpreadMultiplier: 0.6
+  adsSpreadMultiplier: 0.1
+  screenShakeIntensity: 0.04
+  screenShakeDuration: 0.1
+  adsPosition: {x: 0, y: -0.12, z: 0.2}
+  adsSpeed: 6
+  adsRecoilMultiplier: 0.5
+  fireType: 0
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 400
+  projectileUseGravity: 0
+  muzzleFlashPrefab: {fileID: 0}
+  bulletHolePrefab: {fileID: 0}
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}

@@ -1023,6 +1023,7 @@ GameObject:
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
+  - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1165,9 +1166,25 @@ MonoBehaviour:
   rotationSpeed: 200
   minVerticalAngle: -80
   maxVerticalAngle: 80
-  playerBody: {fileID: 0}
-  viewSwitcher: {fileID: 0}
+  playerBody: {fileID: 1231026207}
+  viewSwitcher: {fileID: 1231026212}
   tpsVerticalOffset: 10
+--- !u!114 &330585549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f173a1dae6721b448d93b0dbb08adfa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _cameraRotate: {fileID: 330585548}
+  _crosshairController: {fileID: 1809485798}
+  _weaponSway: {fileID: 1925482930}
+  _showDebugInfo: 0
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -2180,6 +2197,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 481233667}
   m_CullTransparentMesh: 1
+--- !u!134 &484514650
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &537573826
 GameObject:
   m_ObjectHideFlags: 0
@@ -4956,6 +4986,7 @@ GameObject:
   - component: {fileID: 1231026210}
   - component: {fileID: 1231026211}
   - component: {fileID: 1231026212}
+  - component: {fileID: 1231026213}
   m_Layer: 9
   m_Name: Player
   m_TagString: Player
@@ -4970,7 +5001,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1231026203}
-  m_Material: {fileID: 1954300808}
+  m_Material: {fileID: 1829867924}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -5078,6 +5109,7 @@ MonoBehaviour:
   staminaRegenRate: 15
   staminaRegenDelay: 1
   cameraTransform: {fileID: 330585546}
+  _recoilSystem: {fileID: 330585549}
 --- !u!114 &1231026209
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5148,20 +5180,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c190feface1d57340b86c73c3558013f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerTransform: {fileID: 0}
-  cameraTransform: {fileID: 0}
+  playerTransform: {fileID: 1231026207}
+  cameraTransform: {fileID: 330585546}
   fpsPosition: {x: 0, y: 0.58, z: 0.08}
   fpsRotation: {x: 0, y: 0, z: 0}
   tpsPosition: {x: 0.5, y: 0.8, z: -2.5}
   tpsRotation: {x: 10, y: 0, z: 0}
   transitionDuration: 0.5
   transitionEase: 7
-  gunHolder: {fileID: 0}
+  gunHolder: {fileID: 1925482929}
   fpsGunPosition: {x: 0.3, y: -0.3, z: 0.5}
   tpsGunPosition: {x: 0.4, y: -0.2, z: 0.3}
   tpsGunScale: {x: 0.7, y: 0.7, z: 0.7}
   fpsFOV: 60
   tpsFOV: 70
+--- !u!143 &1231026213
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1231026203}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 2
+  m_Radius: 0.5
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1239354056
 GameObject:
   m_ObjectHideFlags: 0
@@ -5746,7 +5803,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   _muzzleFlashParticle: {fileID: 0}
-  _recoilTarget: {fileID: 0}
+  _recoilSystem: {fileID: 330585549}
 --- !u!4 &1376729936
 Transform:
   m_ObjectHideFlags: 0
@@ -5815,7 +5872,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1376729934}
-  m_Material: {fileID: 1425756501}
+  m_Material: {fileID: 484514650}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -5837,19 +5894,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1376729934}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!134 &1425756501
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance)'
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!1 &1429826336
 GameObject:
   m_ObjectHideFlags: 0
@@ -7305,7 +7349,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1688143750}
   - component: {fileID: 1688143749}
-  - component: {fileID: 1688143748}
+  - component: {fileID: 1688143751}
   m_Layer: 0
   m_Name: EventSystem
   m_TagString: Untagged
@@ -7313,26 +7357,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1688143748
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1688143747}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f231c4fb786f3946a6b90b886c48677, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_SendPointerHoverToParent: 1
-  m_HorizontalAxis: Horizontal
-  m_VerticalAxis: Vertical
-  m_SubmitButton: Submit
-  m_CancelButton: Cancel
-  m_InputActionsPerSecond: 10
-  m_RepeatDelay: 0.5
-  m_ForceModuleActive: 0
 --- !u!114 &1688143749
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7363,6 +7387,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1688143751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1688143747}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SendPointerHoverToParent: 1
+  m_MoveRepeatDelay: 0.5
+  m_MoveRepeatRate: 0.1
+  m_XRTrackingOrigin: {fileID: 0}
+  m_ActionsAsset: {fileID: -944628639613478452, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_PointAction: {fileID: -1654692200621890270, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_MoveAction: {fileID: -8784545083839296357, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_SubmitAction: {fileID: 392368643174621059, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_CancelAction: {fileID: 7727032971491509709, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_LeftClickAction: {fileID: 3001919216989983466, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_MiddleClickAction: {fileID: -2185481485913320682, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_RightClickAction: {fileID: -4090225696740746782, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_DeselectOnBackgroundClick: 1
+  m_PointerBehavior: 0
+  m_CursorLockBehavior: 0
+  m_ScrollDeltaPerTick: 6
 --- !u!1 &1705215053
 GameObject:
   m_ObjectHideFlags: 0
@@ -7713,6 +7768,7 @@ GameObject:
   - component: {fileID: 1809485795}
   - component: {fileID: 1809485797}
   - component: {fileID: 1809485796}
+  - component: {fileID: 1809485798}
   m_Layer: 0
   m_Name: Crosshair
   m_TagString: Untagged
@@ -7777,6 +7833,55 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1809485794}
   m_CullTransparentMesh: 1
+--- !u!114 &1809485798
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809485794}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d1524371240d9a4dbb9831571ca1c4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _baseCrosshairSize: 20
+  _maxSpreadMultiplier: 3
+  _smoothSpeed: 15
+  _spreadToPixelRatio: 4
+  _useSpreadColorFeedback: 1
+  _accurateColor: {r: 0, g: 1, b: 0.5, a: 1}
+  _mediumSpreadColor: {r: 1, g: 1, b: 0, a: 1}
+  _inaccurateColor: {r: 1, g: 0.3, b: 0, a: 1}
+  _spreadThreshold1: 2
+  _spreadThreshold2: 5
+  _hideOnADS: 1
+  _adsFadeSpeed: 10
+  _showPlayerStateFeedback: 1
+  _movingTint: {r: 1, g: 1, b: 1, a: 0.9}
+  _airborneTint: {r: 1, g: 0.6, b: 0.6, a: 0.85}
+  _normalColor: {r: 1, g: 1, b: 1, a: 1}
+  _enemyTargetColor: {r: 1, g: 0, b: 0, a: 1}
+  _crosshairRect: {fileID: 0}
+  _canvasGroup: {fileID: 0}
+  _crosshairImages: []
+  _showDebugInfo: 0
+  _syncWithCameraRecoil: 1
+  _recoilOffsetMultiplier: 0.5
+  _maxRecoilOffset: 20
+--- !u!134 &1829867924
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1882722317
 GameObject:
   m_ObjectHideFlags: 0
@@ -8562,6 +8667,7 @@ MonoBehaviour:
   _bobHorizontalAmount: 0.02
   _bobVerticalAmount: 0.01
   _bobSmoothness: 10
+  _kickRecoverySpeed: 15
   _tiltAmount: 4
   _tiltSmoothness: 8
   _characterController: {fileID: 0}
@@ -8640,19 +8746,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1935446996}
   m_CullTransparentMesh: 1
---- !u!134 &1954300808
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance) (Instance) (Instance) (Instance)'
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!1 &2030618721
 GameObject:
   m_ObjectHideFlags: 0

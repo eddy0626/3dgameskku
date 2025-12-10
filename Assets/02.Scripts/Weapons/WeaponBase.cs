@@ -41,9 +41,12 @@ public abstract class WeaponBase : MonoBehaviour
         }
     }
     
-    protected virtual void Start()
+protected virtual void Start()
     {
         InitializeAmmo();
+        
+        // 시작 시 무기 장착 처리 (RecoilSystem에 무기 데이터 전달)
+        OnWeaponEquip();
     }
     
     /// <summary>

@@ -13,12 +13,8 @@ public class FirearmWeapon : WeaponBase
     [Header("머즐 플래시")]
     [SerializeField] private ParticleSystem _muzzleFlashParticle;
     
-    [Header("반동 적용 대상")]
-    [SerializeField] private Transform _recoilTarget; // 카메라 또는 카메라 회전 스크립트
-    
-    // 반동 관련
-    private Vector3 _currentRecoil;
-    private Vector3 _targetRecoil;
+    [Header("반동 시스템")]
+    [SerializeField] private RecoilSystem _recoilSystem;
     
     // 점사 모드용
     private int _burstCount;
@@ -33,12 +29,30 @@ public class FirearmWeapon : WeaponBase
         {
             _cameraTransform = Camera.main?.transform;
         }
+        
+        // RecoilSystem 자동 찾기
+        if (_recoilSystem == null)
+        {
+            _recoilSystem = RecoilSystem.Instance;
+            if (_recoilSystem == null)
+            {
+                _recoilSystem = FindFirstObjectByType<RecoilSystem>();
+            }
+        }
     }
     
-    private void Update()
+    /// <summary>
+    /// 무기 장착 시 호출
+    /// </summary>
+    public override void OnWeaponEquip()
     {
-        // 반동 회복
-        RecoverRecoil();
+        base.OnWeaponEquip();
+        
+        // RecoilSystem에 현재 무기 데이터 설정
+        if (_recoilSystem != null && _weaponData != null)
+        {
+            _recoilSystem.SetWeaponData(_weaponData);
+        }
     }
     
     /// <summary>
@@ -68,9 +82,6 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 실제 발사 처리
     /// </summary>
-/// <summary>
-    /// 실제 발사 처리
-    /// </summary>
     protected override void Fire()
     {
         // 발사 타입에 따른 처리
@@ -88,7 +99,7 @@ public class FirearmWeapon : WeaponBase
         PlayMuzzleFlash();
         PlaySound(_weaponData.fireSound);
         
-        // 반동 적용
+        // 반동 적용 (RecoilSystem 사용)
         ApplyRecoil();
         
         // 탄약 소모
@@ -109,11 +120,24 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// Raycast로 타격 판정
     /// </summary>
+/// <summary>
+    /// Raycast로 타격 판정 (탄퍼짐 적용)
+    /// </summary>
     private void PerformRaycast()
     {
         if (_cameraTransform == null) return;
         
-        Ray ray = new Ray(_cameraTransform.position, _cameraTransform.forward);
+        // 기본 발사 방향
+        Vector3 baseDirection = _cameraTransform.forward;
+        
+        // 탄퍼짐이 적용된 발사 방향
+        Vector3 shootDirection = baseDirection;
+        if (_recoilSystem != null)
+        {
+            shootDirection = _recoilSystem.GetSpreadDirection(baseDirection);
+        }
+        
+        Ray ray = new Ray(_cameraTransform.position, shootDirection);
         RaycastHit hit;
         
         // 디버그용 레이 시각화
@@ -125,12 +149,12 @@ public class FirearmWeapon : WeaponBase
             OnHit(hit);
         }
     }
-
-/// <summary>
+    
+    /// <summary>
     /// 발사체(총알) 발사
     /// </summary>
 /// <summary>
-    /// 발사체(총알) 발사
+    /// 발사체(총알) 발사 (탄퍼짐 적용)
     /// </summary>
     private void FireProjectile()
     {
@@ -149,8 +173,15 @@ public class FirearmWeapon : WeaponBase
         // 크로스헤어(화면 중앙)가 가리키는 목표 지점 계산
         Vector3 targetPoint = GetCrosshairTargetPoint();
         
-        // MuzzlePoint에서 목표 지점을 향한 발사 방향 계산
-        Vector3 shootDirection = (targetPoint - _muzzlePoint.position).normalized;
+        // MuzzlePoint에서 목표 지점을 향한 기본 발사 방향
+        Vector3 baseDirection = (targetPoint - _muzzlePoint.position).normalized;
+        
+        // 탄퍼짐이 적용된 발사 방향
+        Vector3 shootDirection = baseDirection;
+        if (_recoilSystem != null)
+        {
+            shootDirection = _recoilSystem.GetSpreadDirection(baseDirection);
+        }
         
         // 발사체 생성
         GameObject projectileObj = Instantiate(
@@ -184,8 +215,7 @@ public class FirearmWeapon : WeaponBase
         
         Debug.Log($"[{_weaponData.weaponName}] Projectile fired!");
     }
-
-
+    
     /// <summary>
     /// 크로스헤어(화면 중앙)가 가리키는 월드 좌표 목표 지점 반환
     /// </summary>
@@ -209,13 +239,8 @@ public class FirearmWeapon : WeaponBase
             return _cameraTransform.position + _cameraTransform.forward * _weaponData.range;
         }
     }
-
-
     
     /// <summary>
-    /// 피격 처리
-    /// </summary>
-/// <summary>
     /// 피격 처리
     /// </summary>
     private void OnHit(RaycastHit hit)
@@ -281,46 +306,28 @@ public class FirearmWeapon : WeaponBase
     }
     
     /// <summary>
-    /// 반동 적용
+    /// 반동 적용 (RecoilSystem에 위임)
     /// </summary>
-    private void ApplyRecoil()
+private void ApplyRecoil()
     {
-        if (_weaponData == null) return;
+        Debug.Log($"[FirearmWeapon] ApplyRecoil called - RecoilSystem: {_recoilSystem != null}, WeaponData: {_weaponData != null}");
         
-        float verticalKick = _weaponData.verticalRecoil;
-        float horizontalKick = Random.Range(-_weaponData.horizontalRecoil, _weaponData.horizontalRecoil);
-        
-        _targetRecoil += new Vector3(-verticalKick, horizontalKick, 0f);
-    }
-    
-    /// <summary>
-    /// 반동 회복
-    /// </summary>
-    private void RecoverRecoil()
-    {
-        if (_weaponData == null) return;
-        
-        // 부드러운 반동 적용
-        _currentRecoil = Vector3.Lerp(_currentRecoil, _targetRecoil, Time.deltaTime * 10f);
-        
-        // 반동 회복
-        _targetRecoil = Vector3.Lerp(_targetRecoil, Vector3.zero, Time.deltaTime * _weaponData.recoilRecoverySpeed);
-        
-        // 카메라에 반동 적용 (필요시 CameraRotate와 연동)
-        if (_recoilTarget != null)
+        if (_recoilSystem != null && _weaponData != null)
         {
-            // 실제 반동 적용은 CameraRotate 스크립트와 연동 필요
+            Debug.Log($"[FirearmWeapon] Calling RecoilSystem.ApplyRecoil with {_weaponData.weaponName}");
+            _recoilSystem.ApplyRecoil(_weaponData);
+        }
+        else
+        {
+            Debug.LogWarning($"[FirearmWeapon] Cannot apply recoil - RecoilSystem: {_recoilSystem}, WeaponData: {_weaponData}");
         }
     }
     
     /// <summary>
-    /// 현재 반동값 반환 (외부에서 카메라에 적용용)
+    /// RecoilSystem 설정
     /// </summary>
-    public Vector3 GetRecoilDelta()
+    public void SetRecoilSystem(RecoilSystem recoilSystem)
     {
-        Vector3 delta = _currentRecoil - _targetRecoil;
-        return delta * Time.deltaTime;
+        _recoilSystem = recoilSystem;
     }
 }
-
-

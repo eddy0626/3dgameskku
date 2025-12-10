@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4640a306f8b609141b997aed97d7374e, type: 3}
+  m_Name: SMG_MP5
+  m_EditorClassIdentifier: 
+  weaponName: MP5 SMG
+  weaponIcon: {fileID: 0}
+  fireRate: 16
+  damage: 18
+  range: 60
+  fireMode: 1
+  magazineSize: 35
+  maxAmmo: 175
+  reloadTime: 1.8
+  verticalRecoil: 0.7
+  horizontalRecoil: 0.35
+  recoilSnappiness: 9
+  recoilRecoverySpeed: 8
+  maxVerticalRecoil: 7
+  maxHorizontalRecoil: 3
+  crosshairSpreadPerShot: 3
+  maxCrosshairSpread: 20
+  crosshairRecoverySpeed: 18
+  baseCrosshairSize: 22
+  gunKickbackDistance: 0.02
+  gunKickbackRotation: 3
+  gunKickRecoverySpeed: 18
+  baseBulletSpread: 0.6
+  bulletSpreadPerShot: 0.2
+  maxBulletSpread: 7
+  bulletSpreadRecoverySpeed: 12
+  movementSpreadMultiplier: 1.2
+  airborneSpreadMultiplier: 2
+  crouchSpreadMultiplier: 0.8
+  adsSpreadMultiplier: 0.4
+  screenShakeIntensity: 0.01
+  screenShakeDuration: 0.03
+  adsPosition: {x: 0, y: -0.06, z: 0.1}
+  adsSpeed: 12
+  adsRecoilMultiplier: 0.7
+  fireType: 0
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 150
+  projectileUseGravity: 0
+  muzzleFlashPrefab: {fileID: 0}
+  bulletHolePrefab: {fileID: 0}
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}

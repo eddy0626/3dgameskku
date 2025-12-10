@@ -17,7 +17,16 @@ public class WeaponSway : MonoBehaviour
     [SerializeField] private float _bobVerticalAmount = 0.01f;
     [SerializeField] private float _bobSmoothness = 10f;
     
-    [Header("기울기 (Tilt)")]
+        [Header("총기 킥백 (발사 시)")]
+    [SerializeField] private float _kickRecoverySpeed = 15f;
+    
+    // 킥백 상태
+    private Vector3 _kickPositionOffset;
+    private Vector3 _kickRotationOffset;
+    private Vector3 _targetKickPosition;
+    private Vector3 _targetKickRotation;
+    
+[Header("기울기 (Tilt)")]
     [SerializeField] private float _tiltAmount = 4f;
     [SerializeField] private float _tiltSmoothness = 8f;
     
@@ -49,6 +58,7 @@ public class WeaponSway : MonoBehaviour
         CalculateMouseSway();
         CalculateMovementBob();
         CalculateTilt();
+        UpdateKickback();
         
         ApplySway();
     }
@@ -105,18 +115,56 @@ public class WeaponSway : MonoBehaviour
     }
     
     /// <summary>
+    /// 킥백 업데이트 (매 프레임)
+    /// </summary>
+    private void UpdateKickback()
+    {
+        // 목표 킥백이 0으로 회복
+        _targetKickPosition = Vector3.Lerp(_targetKickPosition, Vector3.zero, Time.deltaTime * _kickRecoverySpeed);
+        _targetKickRotation = Vector3.Lerp(_targetKickRotation, Vector3.zero, Time.deltaTime * _kickRecoverySpeed);
+        
+        // 현재 킥백이 목표로 부드럽게 이동
+        _kickPositionOffset = Vector3.Lerp(_kickPositionOffset, _targetKickPosition, Time.deltaTime * _kickRecoverySpeed * 2f);
+        _kickRotationOffset = Vector3.Lerp(_kickRotationOffset, _targetKickRotation, Time.deltaTime * _kickRecoverySpeed * 2f);
+    }
+    
+    /// <summary>
+    /// 총기 킥백 적용 (RecoilSystem에서 호출)
+    /// </summary>
+    /// <param name="kickbackDistance">뒤로 밀리는 거리 (Z축)</param>
+    /// <param name="kickbackRotation">위로 회전하는 각도 (X축)</param>
+    public void ApplyGunKick(float kickbackDistance, float kickbackRotation)
+    {
+        // 위치 킥백 (뒤로 밀림)
+        _targetKickPosition.z = -kickbackDistance;
+        
+        // 회전 킥백 (위로 들림)
+        _targetKickRotation.x = -kickbackRotation;
+        
+        // 약간의 랜덤 좌우 회전 추가 (자연스러움)
+        _targetKickRotation.y = Random.Range(-kickbackRotation * 0.2f, kickbackRotation * 0.2f);
+    }
+
+    
+    /// <summary>
+    /// 스웨이 적용
+    /// </summary>
+    /// <summary>
     /// 스웨이 적용
     /// </summary>
     private void ApplySway()
     {
-        Vector3 finalPosition = _initialPosition + _targetPosition;
+        // 위치: 기본 스웨이 + 킥백 오프셋
+        Vector3 finalPosition = _initialPosition + _targetPosition + _kickPositionOffset;
         transform.localPosition = Vector3.Lerp(
             transform.localPosition, 
             finalPosition, 
             Time.deltaTime * _mouseSwaySmoothness
         );
         
-        Quaternion finalRotation = _initialRotation * _targetRotation;
+        // 회전: 기본 틸트 + 킥백 회전
+        Quaternion kickRotation = Quaternion.Euler(_kickRotationOffset);
+        Quaternion finalRotation = _initialRotation * _targetRotation * kickRotation;
         transform.localRotation = Quaternion.Slerp(
             transform.localRotation, 
             finalRotation, 

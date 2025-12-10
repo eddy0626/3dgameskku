@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4640a306f8b609141b997aed97d7374e, type: 3}
+  m_Name: Pistol_K5
+  m_EditorClassIdentifier: 
+  weaponName: K5 Pistol
+  weaponIcon: {fileID: 0}
+  fireRate: 6
+  damage: 35
+  range: 50
+  fireMode: 0
+  magazineSize: 15
+  maxAmmo: 75
+  reloadTime: 1.5
+  verticalRecoil: 1.8
+  horizontalRecoil: 0.3
+  recoilSnappiness: 10
+  recoilRecoverySpeed: 10
+  maxVerticalRecoil: 8
+  maxHorizontalRecoil: 3
+  crosshairSpreadPerShot: 6
+  maxCrosshairSpread: 28
+  crosshairRecoverySpeed: 20
+  baseCrosshairSize: 18
+  gunKickbackDistance: 0.04
+  gunKickbackRotation: 6
+  gunKickRecoverySpeed: 20
+  baseBulletSpread: 0.3
+  bulletSpreadPerShot: 0.4
+  maxBulletSpread: 5
+  bulletSpreadRecoverySpeed: 15
+  movementSpreadMultiplier: 1.3
+  airborneSpreadMultiplier: 2.5
+  crouchSpreadMultiplier: 0.7
+  adsSpreadMultiplier: 0.25
+  screenShakeIntensity: 0.02
+  screenShakeDuration: 0.05
+  adsPosition: {x: 0, y: -0.05, z: 0.08}
+  adsSpeed: 15
+  adsRecoilMultiplier: 0.6
+  fireType: 0
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 120
+  projectileUseGravity: 0
+  muzzleFlashPrefab: {fileID: 0}
+  bulletHolePrefab: {fileID: 0}
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}
