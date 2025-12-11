@@ -63,40 +63,19 @@ private void Start()
     /// <summary>
     /// 발사 입력 처리
     /// </summary>
-    private void HandleFireInput()
+private void HandleFireInput()
     {
-        if (_weaponData == null) return;
+        if (_currentWeapon == null) return;
         
-        switch (_weaponData.fireMode)
+        // 트리거 상태 전달 (마우스 버튼 누름 여부)
+        bool isMouseHeld = Input.GetMouseButton(0);
+        _currentWeapon.SetTriggerState(isMouseHeld);
+        
+        // 마우스 버튼 누르고 있으면 발사 시도
+        // 발사 모드별 처리는 FirearmWeapon.TryFire()에서 담당
+        if (isMouseHeld)
         {
-            case FireMode.Auto:
-                // 연발: 마우스 버튼 누르고 있는 동안 발사
-                if (Input.GetMouseButton(0))
-                {
-                    _currentWeapon.TryFire();
-                }
-                break;
-                
-            case FireMode.Semi:
-                // 단발: 클릭할 때마다 한 발
-                if (Input.GetMouseButtonDown(0))
-                {
-                    _currentWeapon.TryFire();
-                }
-                break;
-                
-            case FireMode.Burst:
-                // 점사: 클릭 시 3발 연속
-                if (Input.GetMouseButtonDown(0))
-                {
-                    _currentWeapon.TryFire();
-                }
-                // 점사 중 자동 발사
-                else if (_isFiring)
-                {
-                    _currentWeapon.TryFire();
-                }
-                break;
+            _currentWeapon.TryFire();
         }
     }
     

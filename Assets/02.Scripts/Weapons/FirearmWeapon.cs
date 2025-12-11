@@ -31,7 +31,24 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 현재 발사 모드 프로퍼티
     /// </summary>
-    public FireMode CurrentFireMode => _currentFireMode;
+    
+
+    /// <summary>
+    /// 트리거(마우스 버튼) 상태 설정
+    /// 외부에서 호출하여 트리거 누름/뗴 상태 전달
+    /// </summary>
+    public void SetTriggerState(bool isHeld)
+    {
+        bool wasPreviouslyHeld = _isTriggerHeld;
+        _isTriggerHeld = isHeld;
+        
+        // 트리거를 떼을 때 플래그 리셋
+        if (wasPreviouslyHeld && !isHeld)
+        {
+            _hasFiredThisTrigger = false;
+        }
+    }
+public FireMode CurrentFireMode => _currentFireMode;
 
     
     protected override void Awake()
@@ -139,12 +156,9 @@ public class FirearmWeapon : WeaponBase
     /// <summary>
     /// 발사 시도
     /// </summary>
-    public override void TryFire()
+public override void TryFire()
     {
-        if (_isReloading)
-        {
-            return;
-        }
+        if (_isReloading) return;
         
         if (_currentMagazine <= 0)
         {
@@ -152,18 +166,46 @@ public class FirearmWeapon : WeaponBase
             return;
         }
         
-        if (Time.time < _nextFireTime)
-        {
-            return;
-        }
+        if (Time.time < _nextFireTime) return;
         
-        Fire();
+        // 발사 모드별 처리
+        switch (_currentFireMode)
+        {
+            case FireMode.Semi:
+                // 단발: 트리거당 1발만 발사
+                if (!_hasFiredThisTrigger)
+                {
+                    Fire();
+                    _hasFiredThisTrigger = true;
+                }
+                break;
+                
+            case FireMode.Burst:
+                // 점사: 트리거당 3발 연속 발사
+                if (!_hasFiredThisTrigger || _burstCount > 0)
+                {
+                    Fire();
+                    _burstCount++;
+                    if (_burstCount >= BURST_AMOUNT)
+                    {
+                        _burstCount = 0;
+                        _hasFiredThisTrigger = true;
+                        _nextFireTime = Time.time + 0.2f; // 점사 후 쿨다운
+                    }
+                }
+                break;
+                
+            case FireMode.Auto:
+                // 연발: 누르고 있으면 계속 발사
+                Fire();
+                break;
+        }
     }
     
     /// <summary>
     /// 실제 발사 처리
     /// </summary>
-    protected override void Fire()
+protected override void Fire()
     {
         // 발사 타입에 따른 처리
         switch (_weaponData.fireType)
@@ -185,17 +227,6 @@ public class FirearmWeapon : WeaponBase
         
         // 탄약 소모
         ConsumeAmmo();
-        
-        // 점사 모드 처리 (_currentFireMode 사용)
-        if (_currentFireMode == FireMode.Burst)
-        {
-            _burstCount++;
-            if (_burstCount >= BURST_AMOUNT)
-            {
-                _burstCount = 0;
-                _nextFireTime = Time.time + 0.3f;
-            }
-        }
     }
     
     /// <summary>
