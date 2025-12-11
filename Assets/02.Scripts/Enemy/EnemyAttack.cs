@@ -6,16 +6,7 @@ using UnityEngine;
 /// </summary>
 public class EnemyAttack : MonoBehaviour
 {
-    #region Enums
-    
-    public enum AttackType
-    {
-        Melee,      // 근접 공격
-        Ranged,     // 원거리 공격
-        Both        // 혼합 (거리에 따라 전환)
-    }
-    
-    #endregion
+    // AttackType enum은 EnemyData.cs에서 전역으로 정의됨
     
     #region Inspector Fields
     
@@ -107,6 +98,51 @@ private void Awake()
             }
         }
     }
+
+
+    /// <summary>
+    /// EnemyData 기반 초기화 (EnemyBase에서 호출)
+    /// </summary>
+    public void Initialize(
+        AttackType attackType,
+        float meleeDamage,
+        float meleeRange,
+        float meleeAngle,
+        float meleeRangeThreshold,
+        float rangedDamage,
+        float rangedRange,
+        float projectileSpeed,
+        float aimAccuracy,
+        GameObject projectilePrefab,
+        GameObject meleeEffectPrefab,
+        GameObject muzzleFlashPrefab,
+        AudioClip meleeAttackSound,
+        AudioClip rangedAttackSound)
+    {
+        _attackType = attackType;
+        _meleeDamage = meleeDamage;
+        _meleeRange = meleeRange;
+        _meleeAngle = meleeAngle;
+        _meleeRangeThreshold = meleeRangeThreshold;
+        _rangedDamage = rangedDamage;
+        _rangedRange = rangedRange;
+        _projectileSpeed = projectileSpeed;
+        _aimAccuracy = aimAccuracy;
+        
+        if (projectilePrefab != null)
+            _projectilePrefab = projectilePrefab;
+        if (meleeEffectPrefab != null)
+            _meleeEffectPrefab = meleeEffectPrefab;
+        if (muzzleFlashPrefab != null)
+            _muzzleFlashPrefab = muzzleFlashPrefab;
+        if (meleeAttackSound != null)
+            _meleeSound = meleeAttackSound;
+        if (rangedAttackSound != null)
+            _rangedSound = rangedAttackSound;
+        
+        Debug.Log($"[EnemyAttack] {gameObject.name} initialized - Type: {_attackType}, Melee: {_meleeDamage}, Ranged: {_rangedDamage}");
+    }
+
     
     #endregion
     

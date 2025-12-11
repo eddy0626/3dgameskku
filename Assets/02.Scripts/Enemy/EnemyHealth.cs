@@ -10,6 +10,8 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     [Header("체력 설정")]
     [SerializeField] private float _maxHealth = 100f;
     [SerializeField] private float _currentHealth;
+    [SerializeField] private float _armor = 0f;
+    [SerializeField] private float _headshotMultiplier = 2f;
     
     [Header("피격 이펙트")]
     [SerializeField] private GameObject _hitEffectPrefab;
@@ -20,9 +22,14 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     [SerializeField] private float _hitFlashDuration = 0.1f;
     [SerializeField] private Color _hitFlashColor = Color.red;
     
+    [Header("사운드")]
+    [SerializeField] private AudioClip _hitSound;
+    [SerializeField] private AudioClip _deathSound;
+    
     // 프로퍼티
     public float CurrentHealth => _currentHealth;
     public float MaxHealth => _maxHealth;
+    public float Armor => _armor;
     public bool IsAlive => _currentHealth > 0f;
     public float HealthPercent => _currentHealth / _maxHealth;
     
@@ -35,10 +42,12 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     private Renderer[] _renderers;
     private Color[] _originalColors;
     private bool _isFlashing;
+    private AudioSource _audioSource;
     
     private void Awake()
     {
         _currentHealth = _maxHealth;
+        _audioSource = GetComponent<AudioSource>();
         CacheRenderers();
     }
     
@@ -60,6 +69,36 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     }
     
     /// <summary>
+    /// EnemyData 기반 초기화 (EnemyBase에서 호출)
+    /// </summary>
+    public void Initialize(
+        float maxHealth,
+        float armor,
+        float headshotMultiplier,
+        GameObject hitEffectPrefab,
+        GameObject deathEffectPrefab,
+        float hitFlashDuration,
+        Color hitFlashColor,
+        AudioClip hitSound,
+        AudioClip deathSound)
+    {
+        _maxHealth = maxHealth;
+        _armor = armor;
+        _headshotMultiplier = headshotMultiplier;
+        _hitEffectPrefab = hitEffectPrefab;
+        _deathEffectPrefab = deathEffectPrefab;
+        _hitFlashDuration = hitFlashDuration;
+        _hitFlashColor = hitFlashColor;
+        _hitSound = hitSound;
+        _deathSound = deathSound;
+        
+        _currentHealth = _maxHealth;
+        OnHealthChanged?.Invoke(_currentHealth, _maxHealth);
+        
+        Debug.Log($"[EnemyHealth] {gameObject.name} initialized - HP: {_maxHealth}, Armor: {_armor:P0}");
+    }
+    
+    /// <summary>
     /// 데미지 처리
     /// </summary>
     public void TakeDamage(float damage, Vector3 hitPoint, Vector3 hitNormal)
@@ -67,23 +106,46 @@ public class EnemyHealth : MonoBehaviour, IDamageable
         if (!IsAlive) return;
         if (damage <= 0f) return;
         
-        _currentHealth = Mathf.Max(0f, _currentHealth - damage);
+        // 방어력 적용
+        float actualDamage = CalculateDamage(damage);
+        
+        _currentHealth = Mathf.Max(0f, _currentHealth - actualDamage);
         
         // 이벤트 발생
         OnHealthChanged?.Invoke(_currentHealth, _maxHealth);
-        OnDamaged?.Invoke(damage, hitPoint);
+        OnDamaged?.Invoke(actualDamage, hitPoint);
         
-        // 피격 이펙트
+        // 피격 이펙트 및 사운드
         SpawnHitEffect(hitPoint, hitNormal);
+        PlaySound(_hitSound);
         StartHitFlash();
         
-        Debug.Log($"[EnemyHealth] {gameObject.name} took {damage} damage. HP: {_currentHealth}/{_maxHealth}");
+        Debug.Log($"[EnemyHealth] {gameObject.name} took {actualDamage:F1} damage (raw: {damage}). HP: {_currentHealth}/{_maxHealth}");
         
         // 사망 체크
         if (!IsAlive)
         {
             Die();
         }
+    }
+    
+    /// <summary>
+    /// 헤드샷 데미지 처리
+    /// </summary>
+    public void TakeHeadshotDamage(float damage, Vector3 hitPoint, Vector3 hitNormal)
+    {
+        float headshotDamage = damage * _headshotMultiplier;
+        TakeDamage(headshotDamage, hitPoint, hitNormal);
+        Debug.Log($"[EnemyHealth] HEADSHOT! Multiplier: {_headshotMultiplier}x");
+    }
+    
+    /// <summary>
+    /// 방어력 적용된 데미지 계산
+    /// </summary>
+    private float CalculateDamage(float rawDamage)
+    {
+        float reducedDamage = rawDamage * (1f - _armor);
+        return Mathf.Max(1f, reducedDamage); // 최소 1 데미지
     }
     
     /// <summary>
@@ -142,6 +204,23 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     }
     
     /// <summary>
+    /// 사운드 재생
+    /// </summary>
+    private void PlaySound(AudioClip clip)
+    {
+        if (clip == null) return;
+        
+        if (_audioSource != null)
+        {
+            _audioSource.PlayOneShot(clip);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clip, transform.position);
+        }
+    }
+    
+    /// <summary>
     /// 피격 플래시 시작
     /// </summary>
     private void StartHitFlash()
@@ -186,6 +265,9 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     private void Die()
     {
         Debug.Log($"[EnemyHealth] {gameObject.name} died!");
+        
+        // 사망 사운드 재생
+        PlaySound(_deathSound);
         
         // 사망 이벤트 발생
         OnDeath?.Invoke();

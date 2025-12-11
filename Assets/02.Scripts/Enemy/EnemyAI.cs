@@ -28,10 +28,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private string _targetTag = "Player";
     [SerializeField] private LayerMask _targetLayer;
     
-    [Header("감지 설정")]
+        [Header("감지 설정")]
     [SerializeField] private float _detectionRange = 15f;
     [SerializeField] private float _fieldOfView = 120f;
     [SerializeField] private float _detectionHeight = 2f;
+    [SerializeField] private float _hearingRange = 10f;
     [SerializeField] private LayerMask _obstacleMask;
     
     [Header("순찰 설정")]
@@ -40,10 +41,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float _patrolSpeed = 2f;
     [SerializeField] private bool _randomPatrol = false;
     
-    [Header("추적 설정")]
+        [Header("추적 설정")]
     [SerializeField] private float _chaseSpeed = 5f;
     [SerializeField] private float _chaseRange = 20f;
     [SerializeField] private float _loseTargetTime = 5f;
+    [SerializeField] private float _rotationSpeed = 10f;
     
     [Header("공격 설정")]
     [SerializeField] private float _attackRange = 2f;
@@ -52,6 +54,9 @@ public class EnemyAI : MonoBehaviour
     [Header("복귀 설정")]
     [SerializeField] private float _maxChaseDistance = 30f;
     [SerializeField] private bool _returnToSpawn = true;
+    
+        [Header("사운드")]
+    [SerializeField] private AudioClip _alertSound;
     
     [Header("디버그")]
     [SerializeField] private bool _showGizmos = true;
@@ -120,6 +125,89 @@ public class EnemyAI : MonoBehaviour
             ChangeState(EnemyState.Idle);
         }
     }
+
+
+    /// <summary>
+    /// EnemyData 기반 초기화 (EnemyBase에서 호출)
+    /// </summary>
+    public void Initialize(
+        float detectionRange,
+        float fieldOfView,
+        float detectionHeight,
+        float hearingRange,
+        float patrolSpeed,
+        float patrolWaitTime,
+        bool randomPatrol,
+        float chaseSpeed,
+        float chaseRange,
+        float loseTargetTime,
+        float attackRange,
+        float attackCooldown,
+        float maxChaseDistance,
+        bool returnToSpawn,
+        float rotationSpeed,
+        AudioClip alertSound)
+    {
+        _detectionRange = detectionRange;
+        _fieldOfView = fieldOfView;
+        _detectionHeight = detectionHeight;
+        _hearingRange = hearingRange;
+        _patrolSpeed = patrolSpeed;
+        _patrolWaitTime = patrolWaitTime;
+        _randomPatrol = randomPatrol;
+        _chaseSpeed = chaseSpeed;
+        _chaseRange = chaseRange;
+        _loseTargetTime = loseTargetTime;
+        _attackRange = attackRange;
+        _attackCooldown = attackCooldown;
+        _maxChaseDistance = maxChaseDistance;
+        _returnToSpawn = returnToSpawn;
+        _rotationSpeed = rotationSpeed;
+        _alertSound = alertSound;
+        
+        // NavMeshAgent 속도 업데이트
+        if (_agent != null)
+        {
+            _agent.speed = _patrolSpeed;
+        }
+        
+        Debug.Log($"[EnemyAI] {gameObject.name} initialized - Detection: {_detectionRange}m, Chase: {_chaseSpeed}m/s");
+    }
+    
+    /// <summary>
+    /// AI 상태 리셋 (리스폰용)
+    /// </summary>
+    public void ResetAI()
+    {
+        _hasTarget = false;
+        _canSeeTarget = false;
+        _loseTargetTimer = 0f;
+        _attackTimer = 0f;
+        _patrolWaitTimer = 0f;
+        _currentPatrolIndex = 0;
+        _spawnPosition = transform.position;
+        
+        // NavMeshAgent 리셋
+        if (_agent != null)
+        {
+            _agent.enabled = true;
+            _agent.isStopped = false;
+            _agent.speed = _patrolSpeed;
+        }
+        
+        // 초기 상태 설정
+        if (_patrolPoints != null && _patrolPoints.Length > 0)
+        {
+            ChangeState(EnemyState.Patrol);
+        }
+        else
+        {
+            ChangeState(EnemyState.Idle);
+        }
+        
+        Debug.Log($"[EnemyAI] {gameObject.name} AI reset");
+    }
+
     
     private void Update()
     {
@@ -507,7 +595,7 @@ public class EnemyAI : MonoBehaviour
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,
                 targetRotation,
-                Time.deltaTime * 10f
+                Time.deltaTime * _rotationSpeed
             );
         }
     }
