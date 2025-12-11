@@ -17,6 +17,7 @@ public class EnemyAI : MonoBehaviour
         Chase,      // 추적
         Attack,     // 공격
         Return,     // 복귀
+        Hit,        // 피격 (경직)
         Dead        // 사망
     }
     
@@ -51,7 +52,12 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float _attackRange = 2f;
     [SerializeField] private float _attackCooldown = 1.5f;
     
-    [Header("복귀 설정")]
+    [Header("피격 설정")]
+    [SerializeField] private float _hitStunDuration = 0.3f;
+    [SerializeField] private bool _canBeStunned = true;
+    
+    
+[Header("복귀 설정")]
     [SerializeField] private float _maxChaseDistance = 30f;
     [SerializeField] private bool _returnToSpawn = true;
     
@@ -80,7 +86,12 @@ public class EnemyAI : MonoBehaviour
     private float _attackTimer;
     
     private bool _hasTarget;
-    private bool _canSeeTarget;
+    
+    
+    // 피격 상태 관련
+    private float _hitTimer;
+    private EnemyState _previousState;
+private bool _canSeeTarget;
     
     #endregion
     
@@ -113,6 +124,7 @@ public class EnemyAI : MonoBehaviour
         if (_health != null)
         {
             _health.OnDeath += OnDeath;
+            _health.OnDamaged += OnHit;
         }
         
         // 초기 상태 설정
@@ -234,6 +246,9 @@ public class EnemyAI : MonoBehaviour
             case EnemyState.Return:
                 UpdateReturn();
                 break;
+            case EnemyState.Hit:
+                UpdateHit();
+                break;
         }
     }
     
@@ -242,6 +257,7 @@ public class EnemyAI : MonoBehaviour
         if (_health != null)
         {
             _health.OnDeath -= OnDeath;
+            _health.OnDamaged -= OnHit;
         }
     }
     
@@ -377,6 +393,12 @@ public class EnemyAI : MonoBehaviour
             case EnemyState.Dead:
                 _agent.isStopped = true;
                 _agent.enabled = false;
+                break;
+                
+            case EnemyState.Hit:
+                _agent.isStopped = true;
+                _hitTimer = 0f;
+                // TODO: 피격 애니메이션 트리거
                 break;
         }
     }
@@ -552,6 +574,35 @@ public class EnemyAI : MonoBehaviour
             }
         }
     }
+
+/// <summary>
+    /// 피격 상태 업데이트 (경직 후 이전 상태로 복귀)
+    /// </summary>
+    private void UpdateHit()
+    {
+        _hitTimer += Time.deltaTime;
+        
+        // 경직 시간 종료 시 이전 상태로 복귀
+        if (_hitTimer >= _hitStunDuration)
+        {
+            // 피격 중 타깃을 볼 수 있으면 추적
+            if (_canSeeTarget && _hasTarget)
+            {
+                ChangeState(EnemyState.Chase);
+            }
+            else
+            {
+                // 이전 상태로 복귀 (사망/피격 제외)
+                EnemyState returnState = _previousState;
+                if (returnState == EnemyState.Dead || returnState == EnemyState.Hit)
+                {
+                    returnState = EnemyState.Idle;
+                }
+                ChangeState(returnState);
+            }
+        }
+    }
+
     
     #endregion
     
@@ -622,6 +673,31 @@ public class EnemyAI : MonoBehaviour
     {
         ChangeState(EnemyState.Dead);
     }
+
+/// <summary>
+    /// 피격 처리 (EnemyHealth.OnDamaged 이벤트에서 호출)
+    /// </summary>
+    private void OnHit(float damage, Vector3 hitPoint)
+    {
+        // 사망 상태이거나 경직 불가 시 무시
+        if (_currentState == EnemyState.Dead || !_canBeStunned) return;
+        
+        // 이미 피격 중이면 타이머만 리셋
+        if (_currentState == EnemyState.Hit)
+        {
+            _hitTimer = 0f;
+            return;
+        }
+        
+        // 현재 상태 저장 (복귀용)
+        _previousState = _currentState;
+        
+        // 피격 상태로 전환
+        ChangeState(EnemyState.Hit);
+        
+        Debug.Log($"[EnemyAI] {gameObject.name} 피격! 데미지: {damage:F1}, 이전 상태: {_previousState}");
+    }
+
     
     #endregion
     
