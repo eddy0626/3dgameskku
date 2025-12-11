@@ -29,7 +29,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private string _targetTag = "Player";
     [SerializeField] private LayerMask _targetLayer;
     
-        [Header("감지 설정")]
+    [Header("감지 설정")]
     [SerializeField] private float _detectionRange = 15f;
     [SerializeField] private float _fieldOfView = 120f;
     [SerializeField] private float _detectionHeight = 2f;
@@ -42,7 +42,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float _patrolSpeed = 2f;
     [SerializeField] private bool _randomPatrol = false;
     
-        [Header("추적 설정")]
+    [Header("추적 설정")]
     [SerializeField] private float _chaseSpeed = 5f;
     [SerializeField] private float _chaseRange = 20f;
     [SerializeField] private float _loseTargetTime = 5f;
@@ -56,12 +56,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float _hitStunDuration = 0.3f;
     [SerializeField] private bool _canBeStunned = true;
     
-    
-[Header("복귀 설정")]
+    [Header("복귀 설정")]
     [SerializeField] private float _maxChaseDistance = 30f;
     [SerializeField] private bool _returnToSpawn = true;
     
-        [Header("사운드")]
+    [Header("사운드")]
     [SerializeField] private AudioClip _alertSound;
     
     [Header("디버그")]
@@ -87,11 +86,10 @@ public class EnemyAI : MonoBehaviour
     
     private bool _hasTarget;
     
-    
     // 피격 상태 관련
     private float _hitTimer;
     private EnemyState _previousState;
-private bool _canSeeTarget;
+    private bool _canSeeTarget;
     
     #endregion
     
@@ -137,7 +135,6 @@ private bool _canSeeTarget;
             ChangeState(EnemyState.Idle);
         }
     }
-
 
     /// <summary>
     /// EnemyData 기반 초기화 (EnemyBase에서 호출)
@@ -220,7 +217,6 @@ private bool _canSeeTarget;
         Debug.Log($"[EnemyAI] {gameObject.name} AI reset");
     }
 
-    
     private void Update()
     {
         if (_currentState == EnemyState.Dead) return;
@@ -408,7 +404,16 @@ private bool _canSeeTarget;
     /// </summary>
     private void ExitState(EnemyState state)
     {
-        // 필요시 정리 로직 추가
+        switch (state)
+        {
+            case EnemyState.Attack:
+                // 연사 중지
+                if (_attack != null)
+                {
+                    _attack.StopFiring();
+                }
+                break;
+        }
     }
     
     #endregion
@@ -575,7 +580,7 @@ private bool _canSeeTarget;
         }
     }
 
-/// <summary>
+    /// <summary>
     /// 피격 상태 업데이트 (경직 후 이전 상태로 복귀)
     /// </summary>
     private void UpdateHit()
@@ -603,7 +608,6 @@ private bool _canSeeTarget;
         }
     }
 
-    
     #endregion
     
     #region Helper Methods
@@ -674,7 +678,7 @@ private bool _canSeeTarget;
         ChangeState(EnemyState.Dead);
     }
 
-/// <summary>
+    /// <summary>
     /// 피격 처리 (EnemyHealth.OnDamaged 이벤트에서 호출)
     /// </summary>
     private void OnHit(float damage, Vector3 hitPoint)
@@ -698,7 +702,6 @@ private bool _canSeeTarget;
         Debug.Log($"[EnemyAI] {gameObject.name} 피격! 데미지: {damage:F1}, 이전 상태: {_previousState}");
     }
 
-    
     #endregion
     
     #region Public Methods
