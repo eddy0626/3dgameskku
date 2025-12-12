@@ -402,6 +402,9 @@ public class EnemyAI : MonoBehaviour
     /// <summary>
     /// 상태 종료 처리
     /// </summary>
+/// <summary>
+    /// 상태 종료 처리
+    /// </summary>
     private void ExitState(EnemyState state)
     {
         switch (state)

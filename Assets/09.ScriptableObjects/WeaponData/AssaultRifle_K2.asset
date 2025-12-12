@@ -20,7 +20,7 @@ MonoBehaviour:
   range: 100
   fireMode: 1
   magazineSize: 30
-  maxAmmo: 150
+  maxAmmo: 300
   reloadTime: 2.2
   verticalRecoil: 4.06
   horizontalRecoil: 2.1
