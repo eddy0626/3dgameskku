@@ -8,7 +8,7 @@ using DG.Tweening;
 /// 핵심 기능:
 /// - 메인 바: 피격 시 즉시 감소
 /// - 트레일 바: 딜레이 후 부드럽게 슬라이드
-/// - 피격 플래시: 순간 흰색 플래시
+/// - 데미지 플래시: 데미지 영역에만 표시되고 트레일과 함께 축소
 /// - 떨림 효과: 임팩트 있는 흔들림
 /// </summary>
 public class EnemyHealthBar : MonoBehaviour
@@ -30,9 +30,9 @@ public class EnemyHealthBar : MonoBehaviour
     
     [Header("피격 플래시 설정")]
     [SerializeField] private bool _enableFlash = true;
-    [SerializeField] private Color _flashColor = Color.white;
+    [SerializeField] private Color _flashColor = new Color(1f, 0.9f, 0.9f, 0.8f);
     [SerializeField] private float _flashDuration = 0.08f;
-    [SerializeField] private float _flashFadeDuration = 0.12f;
+    [SerializeField] private float _flashFadeDuration = 0.15f;
     
     [Header("떨림 효과 설정")]
     [SerializeField] private bool _enableShake = true;
@@ -57,7 +57,7 @@ public class EnemyHealthBar : MonoBehaviour
     [SerializeField] private Color _healthyColor = new Color(0.2f, 0.8f, 0.2f);
     [SerializeField] private Color _damagedColor = new Color(0.8f, 0.8f, 0.2f);
     [SerializeField] private Color _criticalColor = new Color(0.8f, 0.2f, 0.2f);
-    [SerializeField] private Color _trailColor = new Color(1f, 0.3f, 0.1f, 0.95f);
+    [SerializeField] private Color _trailColor = new Color(0.6f, 0.6f, 0.6f, 0.95f);
     
     #endregion
     
@@ -71,20 +71,29 @@ public class EnemyHealthBar : MonoBehaviour
     private float _lastHealthPercent = 1f;
     private Vector3 _originalShakePosition;
     
+    // FlashOverlay용 RectTransform
+    private RectTransform _flashOverlayRect;
+    private RectTransform _fillParentRect;
+    
+    // 현재 데미지 영역 추적
+    private float _currentDamageStart;
+    private float _currentDamageEnd;
+    
     // Tweens
     private Tween _trailTween;
     private Tween _fadeTween;
-    private Tween _flashTween;
+    private Tween _flashFadeTween;
+    private Tween _flashSlideTween;
     private Tween _shakeTween;
     private Sequence _hitSequence;
     
     #endregion
     
     #region Unity Callbacks
-    #if UNITY_EDITOR
+    
+#if UNITY_EDITOR
     private void OnValidate()
     {
-        // 에디터에서 자동 참조 연결
         AutoFindUIElements();
     }
     
@@ -92,9 +101,7 @@ public class EnemyHealthBar : MonoBehaviour
     {
         AutoFindUIElements();
     }
-    #endif
-    
-
+#endif
     
     private void Awake()
     {
@@ -142,7 +149,7 @@ public class EnemyHealthBar : MonoBehaviour
     
     #region Initialization
     
-private void AutoFindUIElements()
+    private void AutoFindUIElements()
     {
         if (_canvasGroup == null)
             _canvasGroup = GetComponent<CanvasGroup>();
@@ -170,72 +177,27 @@ private void AutoFindUIElements()
         
         if (_flashOverlay == null)
         {
-            Transform t = transform.Find("FlashOverlay") ?? transform.Find("Flash");
+            Transform t = transform.Find("FlashOverlay") ?? transform.Find("Flash") ?? transform.Find("DamageFlash");
             if (t != null)
             {
                 _flashOverlay = t.GetComponent<Image>();
             }
-            else if (Application.isPlaying)
-            {
-                // 런타임에 FlashOverlay 동적 생성
-                CreateFlashOverlay();
-            }
         }
     }
-
-/// <summary>
-    /// FlashOverlay 동적 생성 (런타임)
-    /// </summary>
-/// <summary>
-    /// FlashOverlay 동적 생성 (런타임) - Fill 이미지와 동일한 위치/크기
-    /// </summary>
-    private void CreateFlashOverlay()
-    {
-        if (_fillImage == null)
-        {
-            Debug.LogWarning("[EnemyHealthBar] Fill 이미지가 없어 FlashOverlay를 생성할 수 없습니다.");
-            return;
-        }
-        
-        GameObject flashObj = new GameObject("FlashOverlay");
-        flashObj.transform.SetParent(_fillImage.transform.parent, false);
-        
-        // Fill 이미지의 RectTransform 복사
-        RectTransform fillRect = _fillImage.GetComponent<RectTransform>();
-        RectTransform rect = flashObj.AddComponent<RectTransform>();
-        
-        rect.anchorMin = fillRect.anchorMin;
-        rect.anchorMax = fillRect.anchorMax;
-        rect.anchoredPosition = fillRect.anchoredPosition;
-        rect.sizeDelta = fillRect.sizeDelta;
-        rect.pivot = fillRect.pivot;
-        rect.localScale = Vector3.one;
-        rect.localRotation = Quaternion.identity;
-        
-        // Image 추가 (Simple 타입, Stretch)
-        _flashOverlay = flashObj.AddComponent<Image>();
-        _flashOverlay.color = new Color(_flashColor.r, _flashColor.g, _flashColor.b, 0f);
-        _flashOverlay.raycastTarget = false;
-        
-        // Fill 바로 위에 배치
-        flashObj.transform.SetSiblingIndex(_fillImage.transform.GetSiblingIndex() + 1);
-        
-        Debug.Log($"[EnemyHealthBar] FlashOverlay 동적 생성 완료 (Fill 위치/크기 복사): {transform.parent?.name}");
-    }
-
     
-private void InitializeComponents()
+    private void InitializeComponents()
     {
         if (_canvasGroup != null)
             _canvasGroup.alpha = 0f;
         
-        // Image Type을 Filled로 강제 설정 (프리팹 설정 오류 방지)
         if (_fillImage != null)
         {
             _fillImage.type = Image.Type.Filled;
             _fillImage.fillMethod = Image.FillMethod.Horizontal;
             _fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
             _fillImage.fillAmount = 1f;
+            
+            _fillParentRect = _fillImage.transform.parent as RectTransform;
         }
         
         if (_trailImage != null)
@@ -247,10 +209,14 @@ private void InitializeComponents()
             _trailImage.color = _trailColor;
         }
         
-        if (_flashOverlay != null)
+        // FlashOverlay 설정 - 런타임에 동적 생성
+        if (_flashOverlay == null && Application.isPlaying)
         {
-            _flashOverlay.color = new Color(_flashColor.r, _flashColor.g, _flashColor.b, 0f);
-            _flashOverlay.raycastTarget = false;
+            CreateDamageFlashOverlay();
+        }
+        else if (_flashOverlay != null)
+        {
+            SetupFlashOverlay();
         }
         
         if (_shakeTarget != null)
@@ -258,6 +224,68 @@ private void InitializeComponents()
         
         _isVisible = false;
         _lastHealthPercent = 1f;
+    }
+    
+    /// <summary>
+    /// 데미지 영역 표시용 FlashOverlay 생성 (앵커 기반)
+    /// </summary>
+    private void CreateDamageFlashOverlay()
+    {
+        if (_fillParentRect == null && _fillImage != null)
+        {
+            _fillParentRect = _fillImage.transform.parent as RectTransform;
+        }
+        
+        if (_fillParentRect == null)
+        {
+            Debug.LogWarning("[EnemyHealthBar] Fill 부모가 없어 FlashOverlay를 생성할 수 없습니다.");
+            return;
+        }
+        
+        GameObject flashObj = new GameObject("DamageFlash");
+        flashObj.transform.SetParent(_fillParentRect, false);
+        
+        _flashOverlayRect = flashObj.AddComponent<RectTransform>();
+        
+        // 앵커 기반 스트레치 설정 (부모 기준 상대 위치)
+        _flashOverlayRect.anchorMin = new Vector2(0f, 0f);
+        _flashOverlayRect.anchorMax = new Vector2(0f, 1f);
+        _flashOverlayRect.offsetMin = Vector2.zero;
+        _flashOverlayRect.offsetMax = Vector2.zero;
+        _flashOverlayRect.pivot = new Vector2(0f, 0.5f);
+        
+        _flashOverlay = flashObj.AddComponent<Image>();
+        _flashOverlay.color = new Color(_flashColor.r, _flashColor.g, _flashColor.b, 0f);
+        _flashOverlay.raycastTarget = false;
+        
+        // Fill과 Trail 사이에 배치 (Trail 위, Fill 아래)
+        if (_trailImage != null)
+        {
+            flashObj.transform.SetSiblingIndex(_trailImage.transform.GetSiblingIndex() + 1);
+        }
+        
+        Debug.Log($"[EnemyHealthBar] DamageFlash 동적 생성 완료: {transform.parent?.name}");
+    }
+    
+    /// <summary>
+    /// 기존 FlashOverlay를 앵커 기반으로 설정
+    /// </summary>
+    private void SetupFlashOverlay()
+    {
+        _flashOverlayRect = _flashOverlay.GetComponent<RectTransform>();
+        
+        if (_flashOverlayRect != null)
+        {
+            // 앵커 기반 스트레치 설정
+            _flashOverlayRect.anchorMin = new Vector2(0f, 0f);
+            _flashOverlayRect.anchorMax = new Vector2(0f, 1f);
+            _flashOverlayRect.offsetMin = Vector2.zero;
+            _flashOverlayRect.offsetMax = Vector2.zero;
+            _flashOverlayRect.pivot = new Vector2(0f, 0.5f);
+        }
+        
+        _flashOverlay.color = new Color(_flashColor.r, _flashColor.g, _flashColor.b, 0f);
+        _flashOverlay.raycastTarget = false;
     }
     
     public void Initialize(Transform target, EnemyHealth enemyHealth)
@@ -309,7 +337,8 @@ private void InitializeComponents()
     {
         _trailTween?.Kill();
         _fadeTween?.Kill();
-        _flashTween?.Kill();
+        _flashFadeTween?.Kill();
+        _flashSlideTween?.Kill();
         _shakeTween?.Kill();
         _hitSequence?.Kill();
     }
@@ -330,12 +359,10 @@ private void InitializeComponents()
         
         if (damageAmount > 0.001f)
         {
-            // 피격 시 타격감 효과 적용
             ApplyHitImpact(healthPercent, damageAmount);
         }
         else if (healthPercent > _lastHealthPercent)
         {
-            // 회복 시 즉시 반영
             UpdateHealthBarImmediate(healthPercent);
         }
         
@@ -359,8 +386,8 @@ private void InitializeComponents()
     private void ApplyHitImpact(float targetHealthPercent, float damageAmount)
     {
         float effectScale = CalculateEffectScale(damageAmount);
+        float previousHealth = targetHealthPercent + damageAmount;
         
-        // 기존 시퀀스 정지
         _hitSequence?.Kill();
         _hitSequence = DOTween.Sequence();
         
@@ -371,10 +398,10 @@ private void InitializeComponents()
             _fillImage.color = GetHealthColor(targetHealthPercent);
         }
         
-        // 2. 흰색 플래시
+        // 2. 데미지 영역 플래시 (GIF 스타일)
         if (_enableFlash)
         {
-            PlayFlashEffect(effectScale);
+            PlayDamageFlashEffect(targetHealthPercent, previousHealth, effectScale);
         }
         
         // 3. 떨림 효과
@@ -383,7 +410,7 @@ private void InitializeComponents()
             PlayShakeEffect(effectScale);
         }
         
-        // 4. 트레일 바 딜레이 후 슬라이드
+        // 4. 트레일 바 딜레이 후 슬라이드 (플래시와 동기화)
         if (_trailImage != null && _trailImage.fillAmount > targetHealthPercent)
         {
             float delay = _trailDelay * (1f + effectScale * 0.5f);
@@ -392,13 +419,23 @@ private void InitializeComponents()
             _trailTween?.Kill();
             _trailTween = _trailImage.DOFillAmount(targetHealthPercent, duration)
                 .SetEase(_trailEaseType)
-                .SetDelay(delay);
+                .SetDelay(delay)
+                .OnUpdate(() =>
+                {
+                    // 트레일 슬라이드와 플래시 영역 동기화
+                    if (_flashOverlayRect != null && _flashOverlay.color.a > 0.01f)
+                    {
+                        UpdateFlashOverlayPosition(targetHealthPercent, _trailImage.fillAmount);
+                    }
+                })
+                .OnComplete(() =>
+                {
+                    // 트레일 완료 시 플래시 완전 숨김
+                    HideFlashOverlay();
+                });
         }
     }
     
-    /// <summary>
-    /// 데미지 양에 따른 효과 스케일 계산 (0~1)
-    /// </summary>
     private float CalculateEffectScale(float damageAmount)
     {
         if (!_scaledByDamage) return 1f;
@@ -411,53 +448,76 @@ private void InitializeComponents()
     
     #endregion
     
-    #region Flash Effect
+    #region Damage Flash Effect (GIF Style)
     
     /// <summary>
-    /// 피격 시 흰색 플래시 효과
+    /// 데미지 영역에만 흰색 플래시 표시 (GIF 참고 스타일)
+    /// - 현재 체력 ~ 이전 체력 사이에만 표시
+    /// - 트레일과 함께 슬라이드하며 축소
     /// </summary>
-    private void PlayFlashEffect(float intensity)
+    private void PlayDamageFlashEffect(float currentHealthPercent, float previousHealthPercent, float intensity)
     {
-        _flashTween?.Kill();
+        if (_flashOverlay == null || _flashOverlayRect == null) return;
         
-        // 방법 1: FlashOverlay 이미지 사용 (권장)
-        if (_flashOverlay != null)
-        {
-            Color flashCol = _flashColor;
-            flashCol.a = intensity;
-            
-            _flashOverlay.color = flashCol;
-            _flashTween = _flashOverlay.DOFade(0f, _flashFadeDuration)
-                .SetDelay(_flashDuration)
-                .SetEase(Ease.OutQuad);
-        }
-        // 방법 2: Fill 이미지 직접 플래시
-        else if (_fillImage != null)
-        {
-            Color originalColor = GetHealthColor(_lastHealthPercent);
-            Color flashCol = Color.Lerp(originalColor, _flashColor, intensity * 0.7f);
-            
-            _fillImage.color = flashCol;
-            _flashTween = _fillImage.DOColor(originalColor, _flashFadeDuration)
-                .SetDelay(_flashDuration)
-                .SetEase(Ease.OutQuad);
-        }
+        _flashFadeTween?.Kill();
+        _flashSlideTween?.Kill();
+        
+        _currentDamageStart = currentHealthPercent;
+        _currentDamageEnd = previousHealthPercent;
+        
+        // 플래시 영역 설정 (데미지 영역만)
+        UpdateFlashOverlayPosition(currentHealthPercent, previousHealthPercent);
+        
+        // 플래시 색상 설정 (즉시 표시)
+        Color flashCol = _flashColor;
+        flashCol.a = Mathf.Lerp(0.6f, 0.9f, intensity);
+        _flashOverlay.color = flashCol;
+        
+        // 플래시 페이드 아웃 (트레일보다 먼저 완료되도록)
+        float totalDuration = _trailDelay + _trailSlideDuration;
+        float fadeDuration = totalDuration * 0.8f;
+        
+        _flashFadeTween = _flashOverlay.DOFade(0f, fadeDuration)
+            .SetDelay(_flashDuration)
+            .SetEase(Ease.OutQuad);
+    }
+    
+    /// <summary>
+    /// FlashOverlay 위치 업데이트 (앵커 기반)
+    /// </summary>
+    private void UpdateFlashOverlayPosition(float startPercent, float endPercent)
+    {
+        if (_flashOverlayRect == null) return;
+        
+        // 앵커 기반으로 데미지 영역 설정
+        // anchorMin.x = 현재 체력 (왼쪽 경계)
+        // anchorMax.x = 트레일 체력 (오른쪽 경계)
+        _flashOverlayRect.anchorMin = new Vector2(startPercent, 0f);
+        _flashOverlayRect.anchorMax = new Vector2(endPercent, 1f);
+        _flashOverlayRect.offsetMin = Vector2.zero;
+        _flashOverlayRect.offsetMax = Vector2.zero;
+    }
+    
+    /// <summary>
+    /// FlashOverlay 숨김
+    /// </summary>
+    private void HideFlashOverlay()
+    {
+        if (_flashOverlay == null) return;
+        
+        _flashFadeTween?.Kill();
+        _flashOverlay.color = new Color(_flashColor.r, _flashColor.g, _flashColor.b, 0f);
     }
     
     #endregion
     
     #region Shake Effect
     
-    /// <summary>
-    /// 체력바 떨림 효과
-    /// </summary>
     private void PlayShakeEffect(float intensity)
     {
         if (_shakeTarget == null) return;
         
         _shakeTween?.Kill();
-        
-        // 원위치 복구 후 흔들기
         _shakeTarget.anchoredPosition = _originalShakePosition;
         
         float shakeStrength = _shakeIntensity * intensity;
@@ -480,9 +540,6 @@ private void InitializeComponents()
     
     #region Health Bar Update
     
-    /// <summary>
-    /// 체력바 즉시 업데이트 (초기화/회복용)
-    /// </summary>
     private void UpdateHealthBarImmediate(float healthPercent)
     {
         healthPercent = Mathf.Clamp01(healthPercent);
@@ -498,6 +555,8 @@ private void InitializeComponents()
             _trailTween?.Kill();
             _trailImage.fillAmount = healthPercent;
         }
+        
+        HideFlashOverlay();
     }
     
     private Color GetHealthColor(float healthPercent)
@@ -562,9 +621,6 @@ private void InitializeComponents()
     
     #region Public Methods
     
-    /// <summary>
-    /// 강제 업데이트
-    /// </summary>
     public void ForceUpdate()
     {
         if (_enemyHealth != null)
@@ -574,9 +630,6 @@ private void InitializeComponents()
         }
     }
     
-    /// <summary>
-    /// 수동으로 피격 효과 트리거 (테스트용)
-    /// </summary>
     public void TriggerHitEffect(float damagePercent = 0.1f)
     {
         float targetHealth = Mathf.Max(0f, _lastHealthPercent - damagePercent);
