@@ -2,7 +2,7 @@ using UnityEngine;
 using DG.Tweening;
 
 /// <summary>
-/// FPS/TPS 카메라 전환 시스템
+/// FPS/TopView 카메라 전환 시스템
 /// T키를 눌러 시점 전환, DOTween으로 부드러운 애니메이션
 /// </summary>
 public class CameraViewSwitcher : MonoBehaviour
@@ -10,7 +10,7 @@ public class CameraViewSwitcher : MonoBehaviour
     public enum CameraView
     {
         FirstPerson,
-        ThirdPerson
+        TopView
     }
 
     [Header("Camera Settings")]
@@ -21,9 +21,9 @@ public class CameraViewSwitcher : MonoBehaviour
     [SerializeField] private Vector3 fpsPosition = new Vector3(0f, 0.58f, 0.08f);
     [SerializeField] private Vector3 fpsRotation = Vector3.zero;
 
-    [Header("TPS Position (Local)")]
-    [SerializeField] private Vector3 tpsPosition = new Vector3(0.5f, 0.8f, -2.5f);
-    [SerializeField] private Vector3 tpsRotation = new Vector3(10f, 0f, 0f);
+    [Header("Top View Position (Local)")]
+    [SerializeField] private Vector3 topViewPosition = new Vector3(0f, 12f, 0f);
+    [SerializeField] private Vector3 topViewRotation = new Vector3(90f, 0f, 0f);
 
     [Header("Transition Settings")]
     [SerializeField] private float transitionDuration = 0.5f;
@@ -32,12 +32,11 @@ public class CameraViewSwitcher : MonoBehaviour
     [Header("Gun Holder (Optional)")]
     [SerializeField] private Transform gunHolder;
     [SerializeField] private Vector3 fpsGunPosition = new Vector3(0.3f, -0.3f, 0.5f);
-    [SerializeField] private Vector3 tpsGunPosition = new Vector3(0.4f, -0.2f, 0.3f);
-    [SerializeField] private Vector3 tpsGunScale = new Vector3(0.7f, 0.7f, 0.7f);
+    [SerializeField] private bool hideGunInTopView = true;
 
     [Header("FOV Settings")]
     [SerializeField] private float fpsFOV = 60f;
-    [SerializeField] private float tpsFOV = 70f;
+    [SerializeField] private float topViewFOV = 60f;
 
     public CameraView CurrentView { get; private set; } = CameraView.FirstPerson;
     public bool IsTransitioning { get; private set; }
@@ -111,7 +110,7 @@ public class CameraViewSwitcher : MonoBehaviour
     public void ToggleView()
     {
         CameraView targetView = CurrentView == CameraView.FirstPerson
-            ? CameraView.ThirdPerson
+            ? CameraView.TopView
             : CameraView.FirstPerson;
 
         SwitchToView(targetView);
@@ -133,24 +132,59 @@ public class CameraViewSwitcher : MonoBehaviour
         Vector3 targetPosition;
         Vector3 targetRotation;
         float targetFOV;
-        Vector3 targetGunPosition;
-        Vector3 targetGunScale;
 
         if (targetView == CameraView.FirstPerson)
         {
             targetPosition = fpsPosition;
             targetRotation = fpsRotation;
             targetFOV = fpsFOV;
-            targetGunPosition = fpsGunPosition;
-            targetGunScale = originalGunScale;
+
+            // GunHolder 표시
+            if (gunHolder != null)
+            {
+                gunHolder.gameObject.SetActive(true);
+                gunPositionTween = gunHolder
+                    .DOLocalMove(fpsGunPosition, transitionDuration)
+                    .SetEase(transitionEase);
+                gunScaleTween = gunHolder
+                    .DOScale(originalGunScale, transitionDuration)
+                    .SetEase(transitionEase);
+            }
+
+            // 마우스 회전 활성화
+            if (cameraRotate != null)
+            {
+                cameraRotate.enabled = true;
+            }
+
+            // FPS에서 커서 잠금
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
-        else
+        else // TopView
         {
-            targetPosition = tpsPosition;
-            targetRotation = tpsRotation;
-            targetFOV = tpsFOV;
-            targetGunPosition = tpsGunPosition;
-            targetGunScale = Vector3.Scale(originalGunScale, tpsGunScale);
+            targetPosition = topViewPosition;
+            targetRotation = topViewRotation;
+            targetFOV = topViewFOV;
+
+            // GunHolder 숨기기
+            if (gunHolder != null && hideGunInTopView)
+            {
+                gunScaleTween = gunHolder
+                    .DOScale(Vector3.zero, transitionDuration * 0.5f)
+                    .SetEase(transitionEase)
+                    .OnComplete(() => gunHolder.gameObject.SetActive(false));
+            }
+
+            // 탑뷰에서는 마우스 회전 비활성화
+            if (cameraRotate != null)
+            {
+                cameraRotate.enabled = false;
+            }
+
+            // 탑뷰에서 커서 활성화
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         // 카메라 위치 전환
@@ -158,28 +192,27 @@ public class CameraViewSwitcher : MonoBehaviour
             .DOLocalMove(targetPosition, transitionDuration)
             .SetEase(transitionEase);
 
-        // 카메라 로컬 회전 전환 (수직 각도만)
-        rotationTween = cameraTransform
-            .DOLocalRotate(targetRotation, transitionDuration)
-            .SetEase(transitionEase);
+        // 카메라 회전 전환
+        if (targetView == CameraView.TopView)
+        {
+            // 탑뷰: 월드 회전 사용 (플레이어 회전과 무관하게 항상 아래를 봄)
+            rotationTween = cameraTransform
+                .DORotate(targetRotation, transitionDuration)
+                .SetEase(transitionEase);
+        }
+        else
+        {
+            // FPS: 로컬 회전 사용
+            rotationTween = cameraTransform
+                .DOLocalRotate(targetRotation, transitionDuration)
+                .SetEase(transitionEase);
+        }
 
         // FOV 전환
         if (mainCamera != null)
         {
             fovTween = mainCamera
                 .DOFieldOfView(targetFOV, transitionDuration)
-                .SetEase(transitionEase);
-        }
-
-        // Gun Holder 전환
-        if (gunHolder != null)
-        {
-            gunPositionTween = gunHolder
-                .DOLocalMove(targetGunPosition, transitionDuration)
-                .SetEase(transitionEase);
-
-            gunScaleTween = gunHolder
-                .DOScale(targetGunScale, transitionDuration)
                 .SetEase(transitionEase);
         }
 
@@ -211,25 +244,44 @@ public class CameraViewSwitcher : MonoBehaviour
 
             if (gunHolder != null)
             {
+                gunHolder.gameObject.SetActive(true);
                 gunHolder.localPosition = fpsGunPosition;
                 gunHolder.localScale = originalGunScale;
             }
+
+            if (cameraRotate != null)
+            {
+                cameraRotate.enabled = true;
+            }
+
+            // FPS에서 커서 잠금
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
-        else
+        else // TopView
         {
-            cameraTransform.localPosition = tpsPosition;
-            cameraTransform.localRotation = Quaternion.Euler(tpsRotation);
+            cameraTransform.localPosition = topViewPosition;
+            // 탑뷰: 월드 회전 사용 (플레이어 회전과 무관하게 항상 아래를 봄)
+            cameraTransform.rotation = Quaternion.Euler(topViewRotation);
 
             if (mainCamera != null)
             {
-                mainCamera.fieldOfView = tpsFOV;
+                mainCamera.fieldOfView = topViewFOV;
             }
 
-            if (gunHolder != null)
+            if (gunHolder != null && hideGunInTopView)
             {
-                gunHolder.localPosition = tpsGunPosition;
-                gunHolder.localScale = Vector3.Scale(originalGunScale, tpsGunScale);
+                gunHolder.gameObject.SetActive(false);
             }
+
+            if (cameraRotate != null)
+            {
+                cameraRotate.enabled = false;
+            }
+
+            // 탑뷰에서 커서 활성화
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         CurrentView = view;
@@ -241,8 +293,8 @@ public class CameraViewSwitcher : MonoBehaviour
     /// </summary>
     protected virtual void OnViewChanged(CameraView newView)
     {
-        // 회전값 동기화
-        if (cameraRotate != null)
+        // 회전값 동기화 (FPS로 돌아올 때만)
+        if (newView == CameraView.FirstPerson && cameraRotate != null)
         {
             cameraRotate.SyncRotation();
         }
@@ -262,11 +314,19 @@ public class CameraViewSwitcher : MonoBehaviour
     }
 
     /// <summary>
-    /// 현재 시점이 TPS인지 확인
+    /// 현재 시점이 TopView인지 확인
+    /// </summary>
+    public bool IsTopView()
+    {
+        return CurrentView == CameraView.TopView;
+    }
+
+    /// <summary>
+    /// 현재 시점이 3인칭(TopView)인지 확인 (호환성용)
     /// </summary>
     public bool IsThirdPerson()
     {
-        return CurrentView == CameraView.ThirdPerson;
+        return CurrentView == CameraView.TopView;
     }
 
     private void KillAllTweens()
@@ -300,11 +360,15 @@ public class CameraViewSwitcher : MonoBehaviour
         Gizmos.DrawWireSphere(fpsWorldPos, 0.1f);
         Gizmos.DrawLine(parent.position, fpsWorldPos);
 
-        // TPS 위치 시각화 (초록색)
-        Gizmos.color = Color.green;
-        Vector3 tpsWorldPos = parent.TransformPoint(tpsPosition);
-        Gizmos.DrawWireSphere(tpsWorldPos, 0.1f);
-        Gizmos.DrawLine(parent.position, tpsWorldPos);
+        // TopView 위치 시각화 (노란색)
+        Gizmos.color = Color.yellow;
+        Vector3 topViewWorldPos = parent.TransformPoint(topViewPosition);
+        Gizmos.DrawWireSphere(topViewWorldPos, 0.3f);
+        Gizmos.DrawLine(parent.position, topViewWorldPos);
+        
+        // TopView 카메라 방향 시각화
+        Vector3 topViewDir = Quaternion.Euler(topViewRotation) * Vector3.forward;
+        Gizmos.DrawRay(topViewWorldPos, topViewDir * 2f);
     }
 #endif
 }

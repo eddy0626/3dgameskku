@@ -1,11 +1,14 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__unityMCP__read_console",
+      "mcp__unityMCP__execute_menu_item",
+      "mcp__unityMCP__manage_gameobject",
+      "mcp__unityMCP__manage_scene"
+    ]
+  },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "unityMCP"
-  ],
-  "permissions": {
-    "allow": [
-      "mcp__unityMCP__read_console"
-    ]
-  }
+  ]
 }
