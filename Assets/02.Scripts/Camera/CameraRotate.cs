@@ -62,8 +62,14 @@ public class CameraRotate : MonoBehaviour
         Cursor.visible = false;
     }
 
-    private void Update()
+private void Update()
     {
+        // 게임 상태가 Playing이 아니면 회전 입력 무시
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsPlaying)
+        {
+            return;
+        }
+        
         HandleRotation();
         UpdateRecoilOffset();
     }

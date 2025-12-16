@@ -217,8 +217,14 @@ public class EnemyAI : MonoBehaviour
         Debug.Log($"[EnemyAI] {gameObject.name} AI reset");
     }
 
-    private void Update()
+private void Update()
     {
+        // 게임 상태가 Playing이 아니면 AI 동작 정지
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsPlaying)
+        {
+            return;
+        }
+        
         if (_currentState == EnemyState.Dead) return;
         
         // 타겟 감지

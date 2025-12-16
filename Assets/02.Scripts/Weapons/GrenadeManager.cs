@@ -99,8 +99,11 @@ public class GrenadeManager : MonoBehaviour
         OnGrenadeCountChanged?.Invoke(_currentGrenades, _maxGrenades);
     }
     
-    private void Update()
+private void Update()
     {
+        // 게임이 Playing 상태가 아니면 입력 처리 안함
+        if (!GameStateManager.Instance.IsPlaying) return;
+        
         HandleLegacyInput();
         
         if (_showTrajectory && _trajectoryLine != null)
@@ -466,16 +469,20 @@ public class GrenadeManager : MonoBehaviour
     
     #region Input System
     
-    public void OnGrenadeStarted(InputAction.CallbackContext context)
+public void OnGrenadeStarted(InputAction.CallbackContext context)
     {
+        if (!GameStateManager.Instance.IsPlaying) return;
+        
         if (context.started)
         {
             PrepareGrenade();
         }
     }
     
-    public void OnGrenadePerformed(InputAction.CallbackContext context)
+public void OnGrenadePerformed(InputAction.CallbackContext context)
     {
+        if (!GameStateManager.Instance.IsPlaying) return;
+        
         if (context.canceled)
         {
             if (_grenadeReady || _isCooking)

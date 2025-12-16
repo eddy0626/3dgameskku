@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+
 
 /// <summary>
 /// 플레이어 사격 제어 스크립트
@@ -52,8 +54,14 @@ private void Start()
         }
     }
     
-    private void Update()
+private void Update()
     {
+        // 게임 상태가 Playing이 아니면 입력 무시
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsPlaying)
+        {
+            return;
+        }
+        
         if (_currentWeapon == null) return;
         
         HandleFireInput();
@@ -66,6 +74,13 @@ private void Start()
 private void HandleFireInput()
     {
         if (_currentWeapon == null) return;
+        
+        // UI 위에 마우스가 있으면 발사 차단
+        if (IsPointerOverUI())
+        {
+            _currentWeapon.SetTriggerState(false);
+            return;
+        }
         
         // 트리거 상태 전달 (마우스 버튼 누름 여부)
         bool isMouseHeld = Input.GetMouseButton(0);
@@ -121,5 +136,19 @@ private void HandleFireInput()
     public FirearmWeapon GetCurrentWeapon()
     {
         return _currentWeapon;
+    }
+
+
+
+    /// <summary>
+    /// UI 위에 마우스 포인터가 있는지 확인
+    /// </summary>
+    private bool IsPointerOverUI()
+    {
+        // 현재 EventSystem이 있는지 확인
+        if (EventSystem.current == null) return false;
+        
+        // 마우스 포인터가 UI 요소 위에 있는지 확인
+        return EventSystem.current.IsPointerOverGameObject();
     }
 }

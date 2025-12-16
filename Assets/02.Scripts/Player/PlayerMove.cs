@@ -75,8 +75,14 @@ public class PlayerMove : MonoBehaviour
         OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
     }
 
-    void Update()
+void Update()
     {
+        // 게임 상태가 Playing이 아니면 입력 무시
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsPlaying)
+        {
+            return;
+        }
+        
         HandleGroundCheck();
         HandleMovement();
         HandleStamina();
