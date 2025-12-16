@@ -18,6 +18,7 @@ public class EnemyAI : MonoBehaviour
         Attack,     // 공격
         Return,     // 복귀
         Hit,        // 피격 (경직)
+        Jump,       // 점프 (Off-Mesh Link 이동)
         Dead        // 사망
     }
     
@@ -56,6 +57,12 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float _hitStunDuration = 0.3f;
     [SerializeField] private bool _canBeStunned = true;
     
+    [Header("점프 설정 (Off-Mesh Link)")]
+    [SerializeField] private float _jumpHeight = 2f;
+    [SerializeField] private float _jumpDuration = 0.6f;
+    [SerializeField] private bool _useOffMeshLinks = true;
+    [SerializeField] private AnimationCurve _jumpCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+    
     [Header("복귀 설정")]
     [SerializeField] private float _maxChaseDistance = 30f;
     [SerializeField] private bool _returnToSpawn = true;
@@ -91,6 +98,13 @@ public class EnemyAI : MonoBehaviour
     private EnemyState _previousState;
     private bool _canSeeTarget;
     
+    // 점프 상태 관련
+    private bool _isJumping;
+    private Vector3 _jumpStartPos;
+    private Vector3 _jumpEndPos;
+    private float _jumpTimer;
+    private Coroutine _jumpCoroutine;
+    
     #endregion
     
     #region Properties
@@ -111,6 +125,13 @@ public class EnemyAI : MonoBehaviour
         _attack = GetComponent<EnemyAttack>();
         
         _spawnPosition = transform.position;
+        
+        // NavMeshAgent Off-Mesh Link 설정
+        if (_agent != null)
+        {
+            // Off-Mesh Link 자동 순회 활성화 (NavMesh Link 사용)
+            _agent.autoTraverseOffMeshLink = true;
+        }
     }
     
     private void Start()
@@ -217,7 +238,7 @@ public class EnemyAI : MonoBehaviour
         Debug.Log($"[EnemyAI] {gameObject.name} AI reset");
     }
 
-private void Update()
+    private void Update()
     {
         // 게임 상태가 Playing이 아니면 AI 동작 정지
         if (GameStateManager.Instance != null && !GameStateManager.Instance.IsPlaying)
@@ -226,6 +247,9 @@ private void Update()
         }
         
         if (_currentState == EnemyState.Dead) return;
+        
+        // Off-Mesh Link 처리 (NavMesh Link 자동 순회)
+        HandleOffMeshLink();
         
         // 타겟 감지
         DetectTarget();
@@ -280,7 +304,7 @@ private void Update()
     }
     
     /// <summary>
-    /// 타겟 감지 (시야 + 거리)
+    /// 타겟 감지 (시야 + 거리 + NavMesh 경로 기반)
     /// </summary>
     private void DetectTarget()
     {
@@ -304,12 +328,19 @@ private void Update()
             return;
         }
         
-        // 높이 체크
+        // 높이 차이 계산
         float heightDiff = Mathf.Abs(transform.position.y - _target.position.y);
+        
+        // 높이 차이가 크면 NavMesh 경로로 접근 가능한지 확인
         if (heightDiff > _detectionHeight)
         {
-            _canSeeTarget = false;
-            return;
+            // NavMesh 경로 유효성 검사
+            if (!CanReachTargetViaNavMesh())
+            {
+                _canSeeTarget = false;
+                return;
+            }
+            // 경로가 유효하면 높이 차이 무시하고 계속 진행
         }
         
         // 시야각 체크
@@ -318,18 +349,31 @@ private void Update()
         
         if (angle > _fieldOfView * 0.5f)
         {
+            // 시야각 밖이지만 NavMesh 경로가 있으면 소리로 인지한 것으로 처리
+            if (heightDiff > _detectionHeight && CanReachTargetViaNavMesh())
+            {
+                // 경로 기반 감지 (시야 없이)
+                _canSeeTarget = false;
+                _hasTarget = true;
+                _lastKnownTargetPosition = _target.position;
+                _loseTargetTimer = 0f;
+                return;
+            }
             _canSeeTarget = false;
             return;
         }
         
-        // 장애물 체크 (레이캐스트)
-        Vector3 eyePosition = transform.position + Vector3.up * 1.5f;
-        Vector3 targetPosition = _target.position + Vector3.up * 1f;
-        
-        if (Physics.Linecast(eyePosition, targetPosition, _obstacleMask))
+        // 장애물 체크 (레이캐스트) - 같은 층일 때만
+        if (heightDiff <= _detectionHeight)
         {
-            _canSeeTarget = false;
-            return;
+            Vector3 eyePosition = transform.position + Vector3.up * 1.5f;
+            Vector3 targetPosition = _target.position + Vector3.up * 1f;
+            
+            if (Physics.Linecast(eyePosition, targetPosition, _obstacleMask))
+            {
+                _canSeeTarget = false;
+                return;
+            }
         }
         
         // 타겟 발견!
@@ -337,6 +381,60 @@ private void Update()
         _hasTarget = true;
         _lastKnownTargetPosition = _target.position;
         _loseTargetTimer = 0f;
+    }
+
+    /// <summary>
+    /// NavMesh 경로로 타겟에 도달 가능한지 확인
+    /// </summary>
+    private bool CanReachTargetViaNavMesh()
+    {
+        if (_target == null || _agent == null || !_agent.isOnNavMesh) return false;
+        
+        NavMeshPath path = new NavMeshPath();
+        
+        // 타겟 위치로 경로 계산
+        if (_agent.CalculatePath(_target.position, path))
+        {
+            // 경로가 완전하거나 부분적으로 유효한 경우
+            if (path.status == NavMeshPathStatus.PathComplete)
+            {
+                return true;
+            }
+            // 부분 경로도 허용 (가까이는 지점까지라도 이동)
+            else if (path.status == NavMeshPathStatus.PathPartial)
+            {
+                // 부분 경로의 끝점이 타겟과 가까운지 확인
+                if (path.corners.Length > 0)
+                {
+                    Vector3 endPoint = path.corners[path.corners.Length - 1];
+                    float distToTarget = Vector3.Distance(endPoint, _target.position);
+                    // 5미터 이내면 유효한 경로로 판단
+                    return distToTarget < 5f;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /// <summary>
+    /// Off-Mesh Link (NavMesh Link) 자동 순회 처리
+    /// </summary>
+    private void HandleOffMeshLink()
+    {
+        if (_agent == null || !_agent.isOnNavMesh) return;
+        
+        // Off-Mesh Link 위에 있는지 확인
+        if (_agent.isOnOffMeshLink)
+        {
+            // 자동 순회가 비활성화된 경우 수동 처리
+            if (!_agent.autoTraverseOffMeshLink)
+            {
+                // Off-Mesh Link 완료 처리
+                _agent.CompleteOffMeshLink();
+                Debug.Log($"[EnemyAI] {gameObject.name} Off-Mesh Link 완료");
+            }
+        }
     }
     
     #endregion
@@ -402,13 +500,15 @@ private void Update()
                 _hitTimer = 0f;
                 // TODO: 피격 애니메이션 트리거
                 break;
+                
+            case EnemyState.Jump:
+                _agent.isStopped = true;
+                // 점프 시작은 StartJump()에서 처리
+                break;
         }
     }
     
     /// <summary>
-    /// 상태 종료 처리
-    /// </summary>
-/// <summary>
     /// 상태 종료 처리
     /// </summary>
     private void ExitState(EnemyState state)
@@ -434,7 +534,8 @@ private void Update()
     /// </summary>
     private void UpdateIdle()
     {
-        if (_canSeeTarget)
+        // 시야로 발견하거나 경로 기반으로 감지한 경우 추적
+        if (_canSeeTarget || _hasTarget)
         {
             ChangeState(EnemyState.Chase);
         }
@@ -445,8 +546,8 @@ private void Update()
     /// </summary>
     private void UpdatePatrol()
     {
-        // 타겟 발견 시 추적
-        if (_canSeeTarget)
+        // 시야로 발견하거나 경로 기반으로 감지한 경우 추적
+        if (_canSeeTarget || _hasTarget)
         {
             ChangeState(EnemyState.Chase);
             return;
@@ -617,6 +718,15 @@ private void Update()
         }
     }
 
+    /// <summary>
+    /// 점프 상태 업데이트 (코루틴에서 처리되므로 추가 로직 불필요)
+    /// </summary>
+    private void UpdateJump()
+    {
+        // 점프 중 타겟 감지는 계속 수행
+        // 코루틴에서 점프 완료 후 상태 변경 처리
+    }
+
     #endregion
     
     #region Helper Methods
@@ -677,6 +787,120 @@ private void Update()
         {
             Debug.Log($"[EnemyAI] {gameObject.name} attacks (no EnemyAttack component)");
         }
+    }
+    
+    /// <summary>
+    /// 점프 시작 (Off-Mesh Link 감지 시 호출)
+    /// </summary>
+    private void StartJump()
+    {
+        if (_isJumping) return;
+        
+        // 이전 상태 저장
+        _previousState = _currentState;
+        
+        // 점프 상태로 변경
+        ChangeState(EnemyState.Jump);
+        
+        // Off-Mesh Link 데이터 얻기
+        OffMeshLinkData linkData = _agent.currentOffMeshLinkData;
+        _jumpStartPos = transform.position;
+        _jumpEndPos = linkData.endPos + Vector3.up * _agent.baseOffset;
+        
+        // 점프 코루틴 시작
+        _jumpCoroutine = StartCoroutine(DoJump());
+        
+        Debug.Log($"[EnemyAI] {gameObject.name} 점프 시작: {_jumpStartPos} -> {_jumpEndPos}");
+    }
+    
+    /// <summary>
+    /// 점프 코루틴 (포물선 이동)
+    /// </summary>
+    private System.Collections.IEnumerator DoJump()
+    {
+        _isJumping = true;
+        _jumpTimer = 0f;
+        
+        // 점프 방향 바라보기
+        Vector3 jumpDirection = (_jumpEndPos - _jumpStartPos).normalized;
+        jumpDirection.y = 0f;
+        if (jumpDirection.sqrMagnitude > 0.001f)
+        {
+            transform.rotation = Quaternion.LookRotation(jumpDirection);
+        }
+        
+        // 포물선 점프 애니메이션
+        while (_jumpTimer < _jumpDuration)
+        {
+            _jumpTimer += Time.deltaTime;
+            float t = Mathf.Clamp01(_jumpTimer / _jumpDuration);
+            
+            // 수평 이동 (선형 보간)
+            Vector3 horizontalPos = Vector3.Lerp(_jumpStartPos, _jumpEndPos, t);
+            
+            // 수직 이동 (포물선 곡선)
+            float heightOffset = CalculateJumpHeight(t);
+            
+            // 최종 위치 설정
+            transform.position = new Vector3(horizontalPos.x, horizontalPos.y + heightOffset, horizontalPos.z);
+            
+            yield return null;
+        }
+        
+        // 점프 완료
+        CompleteJump();
+    }
+    
+    /// <summary>
+    /// 점프 높이 계산 (포물선)
+    /// </summary>
+    private float CalculateJumpHeight(float t)
+    {
+        // 시작/끝 높이 차이 계산
+        float heightDiff = _jumpEndPos.y - _jumpStartPos.y;
+        
+        // 포물선 곡선 (4 * h * t * (1 - t))
+        float parabola = 4f * _jumpHeight * t * (1f - t);
+        
+        // AnimationCurve 적용 (선택적)
+        float curveValue = _jumpCurve.Evaluate(t);
+        
+        // 기본 높이 보정 + 포물선
+        return parabola;
+    }
+    
+    /// <summary>
+    /// 점프 완료 처리
+    /// </summary>
+    private void CompleteJump()
+    {
+        _isJumping = false;
+        _jumpCoroutine = null;
+        
+        // 최종 위치 설정
+        transform.position = _jumpEndPos;
+        
+        // Off-Mesh Link 이동 완료 알림
+        _agent.CompleteOffMeshLink();
+        
+        // NavMeshAgent 다시 활성화
+        _agent.isStopped = false;
+        
+        // 이전 상태로 복귀 또는 타겟 추적
+        if (_canSeeTarget && _hasTarget)
+        {
+            ChangeState(EnemyState.Chase);
+        }
+        else if (_previousState == EnemyState.Patrol || _previousState == EnemyState.Return)
+        {
+            ChangeState(_previousState);
+        }
+        else
+        {
+            ChangeState(EnemyState.Chase);
+        }
+        
+        Debug.Log($"[EnemyAI] {gameObject.name} 점프 완료, 상태: {_currentState}");
     }
     
     /// <summary>
