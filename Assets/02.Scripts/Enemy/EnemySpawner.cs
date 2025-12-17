@@ -86,11 +86,53 @@ public class EnemySpawner : MonoBehaviour
     
     #region Unity Callbacks
     
+    private void Awake()
+    {
+        // 스폰 포인트 자동 탐지
+        AutoDetectSpawnPoints();
+    }
+    
     private void Start()
     {
         if (_autoStart)
         {
             StartSpawning();
+        }
+    }
+    
+    /// <summary>
+    /// 씬에서 "EnemySpawn" 이름을 가진 오브젝트들을 자동으로 찾아 스폰포인트로 설정
+    /// </summary>
+    private void AutoDetectSpawnPoints()
+    {
+        if (_spawnPoints != null && _spawnPoints.Length > 0) return;
+        
+        List<Transform> foundPoints = new List<Transform>();
+        
+        // "EnemySpawn" 이름 패턴으로 오브젝트 찾기
+        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+        foreach (GameObject obj in allObjects)
+        {
+            if (obj.name.StartsWith("EnemySpawn"))
+            {
+                foundPoints.Add(obj.transform);
+            }
+        }
+        
+        // 이름순 정렬
+        foundPoints.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.Ordinal));
+        
+        if (foundPoints.Count > 0)
+        {
+            _spawnPoints = foundPoints.ToArray();
+            if (_debugMode)
+            {
+                Debug.Log($"[EnemySpawner] 자동 탐지: {_spawnPoints.Length}개 스폰포인트 발견");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[EnemySpawner] 스폰포인트를 찾을 수 없습니다. 'EnemySpawn'으로 시작하는 오브젝트가 필요합니다.");
         }
     }
     

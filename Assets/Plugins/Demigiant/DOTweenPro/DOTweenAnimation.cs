@@ -1,4 +1,4 @@
-﻿// Author: Daniele Giardini - http://www.demigiant.com
+// Author: Daniele Giardini - http://www.demigiant.com
 // Created: 2015/03/12 15:55
 
 using System;
@@ -8,7 +8,7 @@ using UnityEngine;
 #if true // UI_MARKER
 using UnityEngine.UI;
 #endif
-#if false // TEXTMESHPRO_MARKER
+#if true // TEXTMESHPRO_MARKER
 using TMPro;
 #endif
 
@@ -355,7 +355,7 @@ namespace DG.Tweening
                     tween = ((tk2dBaseSprite)target).DOColor(endValueColor, duration);
                     break;
 #endif
-#if false // TEXTMESHPRO_MARKER
+#if true // TEXTMESHPRO_MARKER
                 case TargetType.TextMeshProUGUI:
                     tween = ((TextMeshProUGUI)target).DOColor(endValueColor, duration);
                     break;
@@ -398,7 +398,7 @@ namespace DG.Tweening
                     tween = ((tk2dBaseSprite)target).DOFade(endValueFloat, duration);
                     break;
 #endif
-#if false // TEXTMESHPRO_MARKER
+#if true // TEXTMESHPRO_MARKER
                 case TargetType.TextMeshProUGUI:
                     tween = ((TextMeshProUGUI)target).DOFade(endValueFloat, duration);
                     break;
@@ -423,7 +423,7 @@ namespace DG.Tweening
                     break;
                 }
 #endif
-#if false // TEXTMESHPRO_MARKER
+#if true // TEXTMESHPRO_MARKER
                 switch (targetType) {
                 case TargetType.TextMeshProUGUI:
                     tween = ((TextMeshProUGUI)target).DOText(endValueString, duration, optionalBool0, optionalScrambleMode, optionalString);
@@ -572,7 +572,7 @@ namespace DG.Tweening
         {
             TargetType newTargetType = TypeToDOTargetType(target.GetType());
             if (newTargetType != targetType) {
-                Debug.LogError("DOTweenAnimation ► SetAnimationTarget: the new target is of a different type from the one set in the Inspector");
+                Debug.LogError("DOTweenAnimation ??SetAnimationTarget: the new target is of a different type from the one set in the Inspector");
                 return;
             }
             target = tweenTarget;
@@ -683,7 +683,7 @@ namespace DG.Tweening
             DOTween.TweensByTarget(GetTweenTarget(), false, _tmpTweens);
             int len = _tmpTweens.Count;
             if (len == 0) {
-                Debugger.LogWarning((andPlay ? "DOGotoAndPlay" : "DoGotoAndPause") + " ► tween doesn't exist");
+                Debugger.LogWarning((andPlay ? "DOGotoAndPlay" : "DoGotoAndPause") + " ??tween doesn't exist");
             } else {
                 for (int i = 0; i < _tmpTweens.Count; ++i) {
                     _tmpTweens[i].Goto(time, andPlay);

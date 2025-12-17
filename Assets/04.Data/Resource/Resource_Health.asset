@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9833fc4fa5153540a9901e4470f7e6f, type: 3}
+  m_Name: Resource_Health
+  m_EditorClassIdentifier: 
+  resourceName: Health Pack
+  type: 4
+  icon: {fileID: 0}
+  prefab: {fileID: 2827084062900002129, guid: 85c2765ad6e37514b8325a860640ef37, type: 3}
+  baseAmount: 25
+  minAmount: 20
+  maxAmount: 50
+  randomizeAmount: 1
+  magnetSpeed: 10
+  autoCollectDelay: 0
+  bobHeight: 0.15
+  bobSpeed: 1.5
+  rotateSpeed: 0
+  glowColor: {r: 0, g: 1, b: 0.3, a: 1}
+  collectSound: {fileID: 0}
+  lifetime: 45

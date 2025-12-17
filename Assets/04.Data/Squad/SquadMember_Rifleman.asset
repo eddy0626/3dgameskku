@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9545f6f77b783454bb99998d3085009a, type: 3}
+  m_Name: SquadMember_Rifleman
+  m_EditorClassIdentifier: 
+  memberName: Rifleman
+  icon: {fileID: 0}
+  prefab: {fileID: 1721105123950103553, guid: fd0131159d38c4b41ace16723bc07b5a, type: 3}
+  description: Basic squad member with balanced stats
+  maxHealth: 100
+  damage: 15
+  attackRange: 10
+  attackCooldown: 0.8
+  moveSpeed: 4
+  rotationSpeed: 8
+  followDistance: 3
+  maxFollowDistance: 15
+  detectionRange: 12
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  attackType: 1
+  meleeRange: 2
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 30
+  damagePerLevel: 3
+  healthPerLevel: 15
+  speedPerLevel: 0.2
+  attackSpeedPerLevel: 0.05
+  deathEffect: {fileID: 0}
+  attackEffect: {fileID: 0}
+  spawnEffect: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathSound: {fileID: 0}
+  hurtSound: {fileID: 0}
+  recruitCost: 100
+  unlockWave: 1

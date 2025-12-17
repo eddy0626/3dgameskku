@@ -114,7 +114,10 @@ public class TopViewClickMove : MonoBehaviour
         else
         {
             // FPS 모드 복귀: NavMeshAgent 비활성화
-            _agent.ResetPath();
+            if (_agent.isOnNavMesh)
+            {
+                _agent.ResetPath();
+            }
             _agent.enabled = false;
 
             // PlayerMove 다시 활성화
@@ -231,7 +234,7 @@ public class TopViewClickMove : MonoBehaviour
     /// </summary>
     public void StopMovement()
     {
-        if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+        if (_agent != null && _agent.enabled && _agent.isOnNavMesh && _agent.hasPath)
         {
             _agent.ResetPath();
         }
@@ -242,7 +245,10 @@ public class TopViewClickMove : MonoBehaviour
         // 비활성화 시 NavMeshAgent도 비활성화
         if (_agent != null)
         {
-            _agent.ResetPath();
+            if (_agent.isOnNavMesh)
+            {
+                _agent.ResetPath();
+            }
             _agent.enabled = false;
         }
 

@@ -73,10 +73,18 @@ public class DamageVignetteEffect : MonoBehaviour
     {
         if (_postProcessVolume == null)
         {
-            Debug.LogError("[DamageVignetteEffect] Post Process Volume이 할당되지 않았습니다!");
+            Debug.LogWarning("[DamageVignetteEffect] Post Process Volume이 없습니다. 비네트 효과 비활성화.");
+            enabled = false;
             return;
         }
-        
+
+        if (_postProcessVolume.profile == null)
+        {
+            Debug.LogWarning("[DamageVignetteEffect] Volume Profile이 없습니다. 비네트 효과 비활성화.");
+            enabled = false;
+            return;
+        }
+
         if (_postProcessVolume.profile.TryGet(out _vignette))
         {
             _vignette.active = true;
@@ -84,12 +92,13 @@ public class DamageVignetteEffect : MonoBehaviour
             _vignette.color.overrideState = true;
             _vignette.intensity.value = _minIntensity;
             _vignette.color.value = _damageColor;
-            
+
             Debug.Log("[DamageVignetteEffect] Vignette 초기화 완료");
         }
         else
         {
-            Debug.LogError("[DamageVignetteEffect] Volume Profile에 Vignette가 없습니다! Add Override에서 추가하세요.");
+            Debug.LogWarning("[DamageVignetteEffect] Volume Profile에 Vignette가 없습니다. 비네트 효과 비활성화.");
+            enabled = false;
         }
     }
     

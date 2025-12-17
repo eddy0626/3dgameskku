@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9833fc4fa5153540a9901e4470f7e6f, type: 3}
+  m_Name: Resource_Gem
+  m_EditorClassIdentifier: 
+  resourceName: Gem
+  type: 1
+  icon: {fileID: 0}
+  prefab: {fileID: 6936555170219289293, guid: 4c76f5e6b97d5a94d958791e6eedf887, type: 3}
+  baseAmount: 1
+  minAmount: 1
+  maxAmount: 3
+  randomizeAmount: 0
+  magnetSpeed: 12
+  autoCollectDelay: 0
+  bobHeight: 0.3
+  bobSpeed: 3
+  rotateSpeed: 120
+  glowColor: {r: 0.5, g: 0, b: 1, a: 1}
+  collectSound: {fileID: 0}
+  lifetime: 60

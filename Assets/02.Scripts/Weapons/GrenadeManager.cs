@@ -102,7 +102,7 @@ public class GrenadeManager : MonoBehaviour
 private void Update()
     {
         // 게임이 Playing 상태가 아니면 입력 처리 안함
-        if (!GameStateManager.Instance.IsPlaying) return;
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsPlaying) return;
         
         HandleLegacyInput();
         
@@ -147,29 +147,78 @@ private void Update()
     }
 
     #region Aim Point Calculation
-    
+
+    private const float _fallbackAimDistance = 50f;
+
     /// <summary>
     /// 화면 중앙에서 Raycast를 쏴서 실제 조준점을 계산
     /// FPS/TPS 모든 시점에서 정확한 조준 지원
     /// </summary>
     private Vector3 GetAimPoint()
     {
-        if (_playerCamera == null)
+        // 카메라 검증 및 자동 복구
+        Camera activeCamera = ValidateAndGetCamera();
+
+        if (activeCamera == null)
         {
-            return _throwPoint.position + _throwPoint.forward * _maxAimDistance;
+            Debug.LogWarning("[GrenadeManager] 유효한 카메라를 찾을 수 없습니다. throwPoint forward 사용");
+            return _throwPoint.position + _throwPoint.forward * _fallbackAimDistance;
         }
-        
+
         // 화면 중앙에서 Ray 생성
-        Ray aimRay = _playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-        
+        Ray aimRay = activeCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+
         // Raycast로 조준점 찾기
         if (Physics.Raycast(aimRay, out RaycastHit hit, _maxAimDistance, _aimLayerMask))
         {
             return hit.point;
         }
-        
-        // 아무것도 맞지 않으면 최대 거리 지점 반환
-        return aimRay.origin + aimRay.direction * _maxAimDistance;
+
+        // hit 없으면 카메라 forward 방향 * 50m 지점 사용
+        return activeCamera.transform.position + activeCamera.transform.forward * _fallbackAimDistance;
+    }
+
+    /// <summary>
+    /// 카메라 검증 및 자동 복구
+    /// </summary>
+    private Camera ValidateAndGetCamera()
+    {
+        // 1. 할당된 카메라가 유효한지 확인
+        if (_playerCamera != null && _playerCamera.isActiveAndEnabled)
+        {
+            return _playerCamera;
+        }
+
+        // 2. Camera.main으로 복구 시도
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null && mainCamera.isActiveAndEnabled)
+        {
+            _playerCamera = mainCamera;
+            Debug.Log("[GrenadeManager] Camera.main으로 카메라 재할당됨");
+            return _playerCamera;
+        }
+
+        // 3. 씬에서 활성화된 카메라 검색
+        Camera[] allCameras = Camera.allCameras;
+        foreach (Camera cam in allCameras)
+        {
+            if (cam.isActiveAndEnabled && cam.CompareTag("MainCamera"))
+            {
+                _playerCamera = cam;
+                Debug.Log($"[GrenadeManager] MainCamera 태그 카메라로 재할당됨: {cam.name}");
+                return _playerCamera;
+            }
+        }
+
+        // 4. 태그 없어도 활성화된 첫 번째 카메라 사용
+        if (allCameras.Length > 0)
+        {
+            _playerCamera = allCameras[0];
+            Debug.LogWarning($"[GrenadeManager] 첫 번째 활성 카메라로 재할당됨: {_playerCamera.name}");
+            return _playerCamera;
+        }
+
+        return null;
     }
     
     /// <summary>
@@ -589,6 +638,104 @@ public void OnGrenadePerformed(InputAction.CallbackContext context)
             _impactMarker.Hide();
         }
     }
-    
+
+    #endregion
+
+    #region Debug Gizmos
+
+    [Header("디버그")]
+    [SerializeField] private bool _showDebugGizmos = true;
+
+    private void OnDrawGizmos()
+    {
+        if (!_showDebugGizmos) return;
+        if (_throwPoint == null) return;
+
+        Camera activeCamera = _playerCamera != null ? _playerCamera : Camera.main;
+        if (activeCamera == null) return;
+
+        // 카메라 위치
+        Vector3 cameraPos = activeCamera.transform.position;
+        Vector3 cameraForward = activeCamera.transform.forward;
+
+        // 화면 중앙 Ray
+        Ray aimRay = activeCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+
+        // 조준점 계산
+        Vector3 aimPoint;
+        bool hasHit = Physics.Raycast(aimRay, out RaycastHit hit, _maxAimDistance, _aimLayerMask);
+
+        if (hasHit)
+        {
+            aimPoint = hit.point;
+        }
+        else
+        {
+            aimPoint = cameraPos + cameraForward * _fallbackAimDistance;
+        }
+
+        // 던지기 방향
+        Vector3 throwDirection = (aimPoint - _throwPoint.position).normalized;
+
+        // 1. 카메라 -> 조준점 Ray (파란색)
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawLine(cameraPos, aimPoint);
+
+        // 2. 조준점 표시 (hit: 녹색, no hit: 노란색)
+        Gizmos.color = hasHit ? Color.green : Color.yellow;
+        Gizmos.DrawWireSphere(aimPoint, 0.3f);
+
+        // 3. throwPoint 위치 (마젠타)
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireSphere(_throwPoint.position, 0.15f);
+
+        // 4. throwPoint -> 조준점 방향 (빨간색, 던지기 방향)
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(_throwPoint.position, throwDirection * 5f);
+
+        // 5. 카메라 forward 방향 (흰색)
+        Gizmos.color = Color.white;
+        Gizmos.DrawRay(cameraPos, cameraForward * 3f);
+
+        // 6. throwPoint forward 방향 (주황색, 비교용)
+        Gizmos.color = new Color(1f, 0.5f, 0f);
+        Gizmos.DrawRay(_throwPoint.position, _throwPoint.forward * 3f);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (!_showDebugGizmos) return;
+        if (_throwPoint == null) return;
+
+        Camera activeCamera = _playerCamera != null ? _playerCamera : Camera.main;
+        if (activeCamera == null) return;
+
+        // 선택 시 추가 정보 표시
+        Vector3 cameraPos = activeCamera.transform.position;
+        Ray aimRay = activeCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+
+        Vector3 aimPoint;
+        if (Physics.Raycast(aimRay, out RaycastHit hit, _maxAimDistance, _aimLayerMask))
+        {
+            aimPoint = hit.point;
+
+            // hit normal 표시 (초록색)
+            Gizmos.color = Color.green;
+            Gizmos.DrawRay(hit.point, hit.normal * 1f);
+        }
+        else
+        {
+            aimPoint = cameraPos + activeCamera.transform.forward * _fallbackAimDistance;
+        }
+
+        // 카메라 -> throwPoint 연결선 (회색 점선 효과)
+        Gizmos.color = Color.gray;
+        Gizmos.DrawLine(cameraPos, _throwPoint.position);
+
+        // throwPoint -> aimPoint 연결선 (실제 던지기 경로)
+        Gizmos.color = new Color(1f, 0f, 0f, 0.5f);
+        Gizmos.DrawLine(_throwPoint.position, aimPoint);
+    }
+
     #endregion
 }

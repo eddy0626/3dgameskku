@@ -238,21 +238,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d89aea035c27c4943bf64c23633d729a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _fillImage: {fileID: 0}
-  _damageDelayImage: {fileID: 0}
-  _backgroundImage: {fileID: 0}
-  _canvasGroup: {fileID: 0}
+  _fillImage: {fileID: 4696395228087946957}
+  _trailImage: {fileID: 1786538234531880204}
+  _backgroundImage: {fileID: 3386857724060073097}
+  _flashOverlay: {fileID: 0}
+  _canvasGroup: {fileID: 3156529574847912778}
+  _shakeTarget: {fileID: 6003101712655792470}
+  _trailDelay: 0.3
+  _trailDuration: 0.5
+  _trailEaseType: 6
+  _trailColor: {r: 0.8, g: 0.3, b: 0.1, a: 1}
+  _enableFlash: 1
+  _flashColor: {r: 1, g: 1, b: 1, a: 0.8}
+  _flashDuration: 0.1
+  _enableShake: 1
+  _shakeIntensity: 5
+  _shakeDuration: 0.15
+  _shakeVibrato: 15
   _heightOffset: 2.5
-  _damageDelayTime: 0.5
-  _damageDelayDuration: 0.3
   _showDuration: 5
   _fadeInDuration: 0.2
   _fadeOutDuration: 0.5
+  _billboard: 1
   _healthyColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
   _damagedColor: {r: 0.8, g: 0.8, b: 0.2, a: 1}
   _criticalColor: {r: 0.8, g: 0.2, b: 0.2, a: 1}
-  _damageDelayColor: {r: 1, g: 0.5, b: 0, a: 0.8}
-  _billboard: 1
 --- !u!1 &7302330077303846908
 GameObject:
   m_ObjectHideFlags: 0

@@ -62,6 +62,15 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float _jumpDuration = 0.6f;
     [SerializeField] private bool _useOffMeshLinks = true;
     [SerializeField] private AnimationCurve _jumpCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+    [Header("자동 점프 설정")]
+    [SerializeField] private bool _enableAutoJump = true;
+    [SerializeField] private float _autoJumpMaxDistance = 10f;
+    [SerializeField] private float _autoJumpMaxHeightUp = 5f;
+    [SerializeField] private float _autoJumpMaxHeightDown = 8f;
+    [SerializeField] private float _autoJumpCooldown = 1f;
+    [SerializeField] private float _autoJumpCheckInterval = 0.3f;
+    [SerializeField] private LayerMask _autoJumpObstacleMask;
     
     
 [Header("복귀 설정")]
@@ -105,6 +114,11 @@ public class EnemyAI : MonoBehaviour
     private Vector3 _jumpEndPos;
     private float _jumpTimer;
     private Coroutine _jumpCoroutine;
+
+    // 자동 점프 관련
+    private float _autoJumpCooldownTimer;
+    private float _autoJumpCheckTimer;
+    private bool _isAutoJump;
 
     
     #endregion
@@ -250,15 +264,21 @@ private void Update()
         {
             return;
         }
-        
+
         if (_currentState == EnemyState.Dead) return;
-        
+
         // Off-Mesh Link 처리 (NavMesh Link 자동 순회)
         HandleOffMeshLink();
-        
+
         // 타겟 감지
         DetectTarget();
-        
+
+        // 자동 점프 체크 (타겟이 있고 높이 차이가 있으면 상태와 관계없이 점프)
+        if (_hasTarget && _currentState != EnemyState.Jump && _agent != null && _agent.isOnNavMesh)
+        {
+            CheckAutoJump();
+        }
+
         // 상태별 행동
         switch (_currentState)
         {
@@ -326,41 +346,56 @@ private void Update()
                 return;
             }
         }
-        
+
         float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-        
+
         // 감지 범위 체크
         if (distanceToTarget > _detectionRange)
         {
             _canSeeTarget = false;
             return;
         }
-        
+
         // 높이 차이 계산
         float heightDiff = Mathf.Abs(transform.position.y - _target.position.y);
-        
-        // 높이 차이가 크면 NavMesh 경로로 접근 가능한지 확인
+
+        // 수평 거리 계산
+        float horizontalDist = Vector3.Distance(
+            new Vector3(transform.position.x, 0, transform.position.z),
+            new Vector3(_target.position.x, 0, _target.position.z)
+        );
+
+        // 높이 차이가 크면 점프 가능 여부 확인
         if (heightDiff > _detectionHeight)
         {
+            // 자동 점프 범위 내면 타겟으로 인식 (NavMesh 경로 없어도 점프 가능)
+            if (_enableAutoJump && horizontalDist <= _autoJumpMaxDistance &&
+                heightDiff <= Mathf.Max(_autoJumpMaxHeightUp, _autoJumpMaxHeightDown))
+            {
+                _canSeeTarget = true;
+                _hasTarget = true;
+                _lastKnownTargetPosition = _target.position;
+                _loseTargetTimer = 0f;
+                return;
+            }
+
             // NavMesh 경로 유효성 검사
             if (!CanReachTargetViaNavMesh())
             {
                 _canSeeTarget = false;
                 return;
             }
-            // 경로가 유효하면 높이 차이 무시하고 계속 진행
         }
-        
+
         // 시야각 체크
         Vector3 directionToTarget = (_target.position - transform.position).normalized;
         float angle = Vector3.Angle(transform.forward, directionToTarget);
-        
+
         if (angle > _fieldOfView * 0.5f)
         {
-            // 시야각 밖이지만 NavMesh 경로가 있으면 소리로 인지한 것으로 처리
-            if (heightDiff > _detectionHeight && CanReachTargetViaNavMesh())
+            // 시야각 밖이지만 점프 범위 내면 감지
+            if (heightDiff > 1f && _enableAutoJump && horizontalDist <= _autoJumpMaxDistance)
             {
-                // 경로 기반 감지 (시야 없이)
                 _canSeeTarget = false;
                 _hasTarget = true;
                 _lastKnownTargetPosition = _target.position;
@@ -370,20 +405,20 @@ private void Update()
             _canSeeTarget = false;
             return;
         }
-        
+
         // 장애물 체크 (레이캐스트) - 같은 층일 때만
         if (heightDiff <= _detectionHeight)
         {
             Vector3 eyePosition = transform.position + Vector3.up * 1.5f;
             Vector3 targetPosition = _target.position + Vector3.up * 1f;
-            
+
             if (Physics.Linecast(eyePosition, targetPosition, _obstacleMask))
             {
                 _canSeeTarget = false;
                 return;
             }
         }
-        
+
         // 타겟 발견!
         _canSeeTarget = true;
         _hasTarget = true;
@@ -633,8 +668,9 @@ private void Update()
             return;
         }
         
-        // 공격 범위 진입 시 공격
-        if (distanceToTarget <= _attackRange)
+        // 공격 범위 진입 시 공격 (높이 차이가 크면 공격 불가)
+        float heightDiffToTarget = Mathf.Abs(_target.position.y - transform.position.y);
+        if (distanceToTarget <= _attackRange && heightDiffToTarget < 1.5f)
         {
             ChangeState(EnemyState.Attack);
             return;
@@ -666,7 +702,7 @@ private void Update()
                 _agent.SetDestination(_lastKnownTargetPosition);
             }
         }
-        
+
         // 타겟 방향 바라보기
         LookAtTarget();
     }
@@ -681,22 +717,30 @@ private void Update()
             ChangeState(EnemyState.Return);
             return;
         }
-        
+
         float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-        
+        float heightDiff = Mathf.Abs(_target.position.y - transform.position.y);
+
+        // 높이 차이가 크면 추적으로 전환 (점프 필요)
+        if (heightDiff >= 1.5f)
+        {
+            ChangeState(EnemyState.Chase);
+            return;
+        }
+
         // 공격 범위 이탈 시 추적
         if (distanceToTarget > _attackRange * 1.2f)
         {
             ChangeState(EnemyState.Chase);
             return;
         }
-        
+
         // 타겟 바라보기
         LookAtTarget();
-        
+
         // 공격 쿨다운
         _attackTimer += Time.deltaTime;
-        
+
         if (_attackTimer >= _attackCooldown)
         {
             _attackTimer = 0f;
@@ -814,6 +858,173 @@ private void Update()
         }
     }
     
+    #region Auto Jump
+
+    /// <summary>
+    /// 자동 점프 체크 (추적 중 호출)
+    /// </summary>
+    private void CheckAutoJump()
+    {
+        if (!_enableAutoJump || _isJumping || _target == null) return;
+
+        // 쿨다운 타이머 감소
+        if (_autoJumpCooldownTimer > 0f)
+        {
+            _autoJumpCooldownTimer -= Time.deltaTime;
+            return;
+        }
+
+        // 체크 간격 타이머
+        _autoJumpCheckTimer -= Time.deltaTime;
+        if (_autoJumpCheckTimer > 0f) return;
+        _autoJumpCheckTimer = _autoJumpCheckInterval;
+
+        // 높이 차이 계산
+        float heightDiff = _target.position.y - transform.position.y;
+        float absHeightDiff = Mathf.Abs(heightDiff);
+
+        // 높이 차이가 1m 이상이면 점프 필요!
+        if (absHeightDiff >= 1.0f)
+        {
+            // 수평 거리 계산
+            float horizontalDist = Vector3.Distance(
+                new Vector3(transform.position.x, 0, transform.position.z),
+                new Vector3(_target.position.x, 0, _target.position.z)
+            );
+
+            // 점프 범위 내면 무조건 점프 시도
+            if (horizontalDist <= _autoJumpMaxDistance)
+            {
+                TryAutoJump();
+            }
+        }
+    }
+
+    /// <summary>
+    /// NavMesh 경로 길이 계산
+    /// </summary>
+    private float GetPathLength()
+    {
+        if (_agent == null || !_agent.hasPath) return float.MaxValue;
+
+        float length = 0f;
+        Vector3[] corners = _agent.path.corners;
+
+        for (int i = 0; i < corners.Length - 1; i++)
+        {
+            length += Vector3.Distance(corners[i], corners[i + 1]);
+        }
+
+        return length;
+    }
+
+    /// <summary>
+    /// 자동 점프 시도
+    /// </summary>
+    private void TryAutoJump()
+    {
+        if (_target == null) return;
+
+        // 점프 가능 여부 및 착지점 계산
+        if (CanAutoJumpToTarget(out Vector3 landingPoint))
+        {
+            StartAutoJump(landingPoint);
+        }
+    }
+
+    /// <summary>
+    /// 자동 점프 가능 여부 판단 및 착지점 계산
+    /// </summary>
+    private bool CanAutoJumpToTarget(out Vector3 landingPoint)
+    {
+        landingPoint = Vector3.zero;
+
+        if (_target == null) return false;
+
+        Vector3 targetPos = _target.position;
+        Vector3 myPos = transform.position;
+
+        // 높이 차이 계산
+        float heightDiff = targetPos.y - myPos.y;
+
+        // 위로 점프 제한
+        if (heightDiff > _autoJumpMaxHeightUp) return false;
+
+        // 아래로 점프 제한
+        if (heightDiff < -_autoJumpMaxHeightDown) return false;
+
+        // 착지점 찾기 (타겟 근처의 NavMesh 위치)
+        // 여러 위치에서 NavMesh 샘플링 시도
+        Vector3[] sampleOffsets = new Vector3[]
+        {
+            Vector3.zero,
+            Vector3.forward * 1f,
+            Vector3.back * 1f,
+            Vector3.left * 1f,
+            Vector3.right * 1f
+        };
+
+        foreach (var offset in sampleOffsets)
+        {
+            Vector3 samplePos = targetPos + offset;
+            if (NavMesh.SamplePosition(samplePos, out NavMeshHit navHit, 3f, NavMesh.AllAreas))
+            {
+                // 착지점이 타겟과 비슷한 높이인지 확인
+                if (Mathf.Abs(navHit.position.y - targetPos.y) < 1f)
+                {
+                    landingPoint = navHit.position;
+
+                    // 간단한 장애물 체크 (머리 위 공간만 확인)
+                    Vector3 jumpPeak = (myPos + landingPoint) / 2f + Vector3.up * (_jumpHeight + 1f);
+                    if (!Physics.Linecast(myPos + Vector3.up, jumpPeak, _autoJumpObstacleMask))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 자동 점프 시작 (NavMeshLink 없이)
+    /// </summary>
+    private void StartAutoJump(Vector3 targetPosition)
+    {
+        if (_isJumping) return;
+
+        // 쿨다운 설정
+        _autoJumpCooldownTimer = _autoJumpCooldown;
+
+        // 이전 상태 저장
+        _previousState = _currentState;
+
+        // 점프 상태로 변경
+        ChangeState(EnemyState.Jump);
+
+        // 점프 위치 설정
+        _jumpStartPos = transform.position;
+        _jumpEndPos = targetPosition + Vector3.up * _agent.baseOffset;
+
+        // 자동 점프 플래그 설정
+        _isAutoJump = true;
+
+        // NavMeshAgent 일시 정지
+        if (_agent != null && _agent.isOnNavMesh)
+        {
+            _agent.isStopped = true;
+            _agent.updatePosition = false;
+        }
+
+        // 점프 코루틴 시작
+        _jumpCoroutine = StartCoroutine(DoJump());
+
+        Debug.Log($"[EnemyAI] {gameObject.name} 자동 점프! 높이차: {(_jumpEndPos.y - _jumpStartPos.y):F1}m");
+    }
+
+    #endregion
+
     /// <summary>
     /// 공격 실행
     /// </summary>
@@ -835,22 +1046,25 @@ private void Update()
     private void StartJump()
     {
         if (_isJumping) return;
-        
+
         // 이전 상태 저장
         _previousState = _currentState;
-        
+
         // 점프 상태로 변경
         ChangeState(EnemyState.Jump);
-        
+
         // Off-Mesh Link 데이터 얻기
         OffMeshLinkData linkData = _agent.currentOffMeshLinkData;
         _jumpStartPos = transform.position;
         _jumpEndPos = linkData.endPos + Vector3.up * _agent.baseOffset;
-        
+
+        // Off-Mesh Link 점프 플래그
+        _isAutoJump = false;
+
         // 점프 코루틴 시작
         _jumpCoroutine = StartCoroutine(DoJump());
-        
-        Debug.Log($"[EnemyAI] {gameObject.name} 점프 시작: {_jumpStartPos} -> {_jumpEndPos}");
+
+        Debug.Log($"[EnemyAI] {gameObject.name} Off-Mesh Link 점프 시작: {_jumpStartPos} -> {_jumpEndPos}");
     }
     
     /// <summary>
@@ -920,14 +1134,41 @@ private void Update()
         // 최종 위치 설정
         transform.position = _jumpEndPos;
 
-        // Off-Mesh Link 이동 완료 알림
-        if (_agent != null && _agent.isOnNavMesh)
+        if (_isAutoJump)
         {
-            _agent.CompleteOffMeshLink();
-            // NavMeshAgent 다시 활성화
-            _agent.isStopped = false;
+            // 자동 점프 완료: NavMeshAgent 위치 동기화 및 재활성화
+            _isAutoJump = false;
+
+            if (_agent != null)
+            {
+                _agent.updatePosition = true;
+
+                // NavMesh 위에 위치 동기화
+                if (NavMesh.SamplePosition(_jumpEndPos, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+                {
+                    _agent.Warp(hit.position);
+                }
+
+                if (_agent.isOnNavMesh)
+                {
+                    _agent.isStopped = false;
+                }
+            }
+
+            Debug.Log($"[EnemyAI] {gameObject.name} 자동 점프 완료!");
         }
-        
+        else
+        {
+            // Off-Mesh Link 점프 완료
+            if (_agent != null && _agent.isOnNavMesh)
+            {
+                _agent.CompleteOffMeshLink();
+                _agent.isStopped = false;
+            }
+
+            Debug.Log($"[EnemyAI] {gameObject.name} Off-Mesh Link 점프 완료");
+        }
+
         // 이전 상태로 복귀 또는 타겟 추적
         if (_canSeeTarget && _hasTarget)
         {
@@ -941,8 +1182,6 @@ private void Update()
         {
             ChangeState(EnemyState.Chase);
         }
-        
-        Debug.Log($"[EnemyAI] {gameObject.name} 점프 완료, 상태: {_currentState}");
     }
     
     /// <summary>

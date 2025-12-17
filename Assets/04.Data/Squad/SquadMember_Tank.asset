@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9545f6f77b783454bb99998d3085009a, type: 3}
+  m_Name: SquadMember_Tank
+  m_EditorClassIdentifier: 
+  memberName: Tank
+  icon: {fileID: 0}
+  prefab: {fileID: 25425983727598785, guid: 0158a16872e6edb4b8a980bb42177df4, type: 3}
+  description: Heavy soldier with high health and melee damage
+  maxHealth: 250
+  damage: 25
+  attackRange: 3
+  attackCooldown: 1.2
+  moveSpeed: 3
+  rotationSpeed: 6
+  followDistance: 2
+  maxFollowDistance: 12
+  detectionRange: 8
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  attackType: 0
+  meleeRange: 3
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 0
+  damagePerLevel: 5
+  healthPerLevel: 30
+  speedPerLevel: 0.1
+  attackSpeedPerLevel: 0.03
+  deathEffect: {fileID: 0}
+  attackEffect: {fileID: 0}
+  spawnEffect: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathSound: {fileID: 0}
+  hurtSound: {fileID: 0}
+  recruitCost: 200
+  unlockWave: 2

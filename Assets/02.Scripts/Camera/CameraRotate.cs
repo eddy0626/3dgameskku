@@ -21,8 +21,8 @@ public class CameraRotate : MonoBehaviour
     [SerializeField] private float tpsVerticalOffset = 10f;
 
     // 회전 상태
-    private float _rotationX = 0f;
-    private float _rotationY = 0f;
+    private float _rotationX;
+    private float _rotationY;
     
     // 반동 관련
     private Vector3 _recoilOffset;
@@ -89,11 +89,11 @@ private void Update()
 
         if (isThirdPerson)
         {
-            ApplyTPSRotation();
+            ApplyTpsRotation();
         }
         else
         {
-            ApplyFPSRotation();
+            ApplyFpsRotation();
         }
     }
 
@@ -110,7 +110,7 @@ private void Update()
     /// FPS 모드 회전 적용
     /// 카메라가 X, Y축 모두 회전 + 반동
     /// </summary>
-    private void ApplyFPSRotation()
+    private void ApplyFpsRotation()
     {
         float finalRotationX = _rotationX + _currentRecoilOffset.x;
         float finalRotationY = _rotationY + _currentRecoilOffset.y;
@@ -126,7 +126,7 @@ private void Update()
     /// 플레이어 몸체: Y축 회전 (좌우)
     /// 카메라: X축 회전만 (상하) + 오프셋
     /// </summary>
-    private void ApplyTPSRotation()
+    private void ApplyTpsRotation()
     {
         // 플레이어 몸체 Y축 회전 (반동 포함)
         if (playerBody != null)

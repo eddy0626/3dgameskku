@@ -92,6 +92,12 @@ public class CameraZoom : MonoBehaviour
             return;
         }
 
+        // 탑뷰일 때는 줌 비활성화
+        if (viewSwitcher != null && viewSwitcher.IsTopView())
+        {
+            return;
+        }
+
         // 마우스 우클릭 토글
         if (Input.GetMouseButtonDown(1))
         {

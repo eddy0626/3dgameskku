@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59d0bb26d8922ac44b91b8659dc56f67, type: 3}
+  m_Name: WaveConfig_05
+  m_EditorClassIdentifier: 
+  waveNumber: 5
+  waveName: "\uBCF4\uC2A4 \uC6E8\uC774\uBE0C"
+  description: "\uAC15\uB825\uD55C \uBCF4\uC2A4\uAC00 \uB098\uD0C0\uB0A9\uB2C8\uB2E4!"
+  preparationTime: 10
+  waveDuration: 150
+  spawnGroups:
+  - enemyType: {fileID: 11400000, guid: 589d1d4e078c0484e99360ca5b064825, type: 2}
+    count: 5
+    startDelay: 0
+    spawnInterval: 1
+    groupDelay: 3
+    spawnAllAtOnce: 0
+    pattern: 0
+    specificSpawnPointIndex: -1
+  - enemyType: {fileID: 11400000, guid: 589d1d4e078c0484e99360ca5b064825, type: 2}
+    count: 5
+    startDelay: 5
+    spawnInterval: 1
+    groupDelay: 3
+    spawnAllAtOnce: 0
+    pattern: 0
+    specificSpawnPointIndex: -1
+  - enemyType: {fileID: 11400000, guid: 589d1d4e078c0484e99360ca5b064825, type: 2}
+    count: 5
+    startDelay: 10
+    spawnInterval: 1
+    groupDelay: 3
+    spawnAllAtOnce: 0
+    pattern: 0
+    specificSpawnPointIndex: -1
+  hasBoss: 1
+  bossEnemy: {fileID: 11400000, guid: 589d1d4e078c0484e99360ca5b064825, type: 2}
+  bossSpawnTime: 60
+  bossCount: 1
+  goldReward: 500
+  gemReward: 5
+  experienceReward: 100
+  bonusDropChance: 0
+  healthMultiplier: 1.5
+  damageMultiplier: 1.2
+  spawnRateMultiplier: 1.2
+  speedMultiplier: 1
+  eventType: 0
+  eventStartTime: 30
+  eventDuration: 10

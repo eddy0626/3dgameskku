@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dd82f5ca8bfbf4da8278959d456477, type: 3}
+  m_Name: Upgrade_CriticalChance
+  m_EditorClassIdentifier: 
+  upgradeName: Precision
+  description: Increases critical hit chance
+  icon: {fileID: 0}
+  type: 7
+  target: 1
+  rarity: 2
+  valuePerLevel:
+  - 5
+  - 7
+  - 10
+  - 12
+  - 15
+  costPerLevel: fa000000f4010000e8030000d0070000a00f0000
+  maxLevel: 5
+  unlockWave: 2
+  prerequisites: []
+  upgradeColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+  upgradeEffect: {fileID: 0}
