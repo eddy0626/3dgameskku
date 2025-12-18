@@ -25,9 +25,20 @@ public class PlayerMove : MonoBehaviour
 
     [Header("References")]
     public Transform cameraTransform;
-    
+
+    [Header("Animation")]
+    [SerializeField] private Animator _animator;
+    [SerializeField] private Animator _soldierAnimator;
+    private static readonly int SpeedHash = Animator.StringToHash("Speed");
+    private static readonly int IsJumpingHash = Animator.StringToHash("IsJumping");
+    private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
+
     [Header("Recoil System")]
     [SerializeField] private RecoilSystem _recoilSystem;
+    
+    // Animation parameter hashes (PlayerAnimator.controller와 일치)
+    private static readonly int AnimSpeed = Animator.StringToHash("Speed");
+    private static readonly int AnimIsShooting = Animator.StringToHash("IsShooting");
 
     // Private fields
     private CharacterController _characterController;
@@ -71,8 +82,32 @@ public class PlayerMove : MonoBehaviour
             }
         }
         
-        _currentStamina = maxStamina;
+        // Soldier Animator 자동 찾기 (Soldier_demo의 Animator를 메인으로 사용)
+        if (_soldierAnimator == null)
+        {
+            Transform soldierTransform = transform.Find("Soldier_demo");
+            if (soldierTransform != null)
+            {
+                _soldierAnimator = soldierTransform.GetComponent<Animator>();
+            }
+        }
+
+        // _animator도 Soldier_demo의 Animator 참조 (애니메이션 통합)
+        if (_animator == null && _soldierAnimator != null)
+        {
+            _animator = _soldierAnimator;
+        }
+        else if (_animator == null)
+        {
+            _animator = GetComponentInChildren<Animator>();
+        }
+_currentStamina = maxStamina;
         OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
+
+        // 디버그: Animator 참조 확인
+        #if UNITY_EDITOR
+        Debug.Log($"[PlayerMove] Start - _animator: {(_animator != null ? _animator.name : "NULL")}, _soldierAnimator: {(_soldierAnimator != null ? _soldierAnimator.name : "NULL")}");
+        #endif
     }
 
 void Update()
@@ -82,7 +117,13 @@ void Update()
         {
             return;
         }
-        
+
+        // Animator null 체크 (시작 시 한 번만)
+        if (_animator == null && Time.frameCount % 60 == 0)
+        {
+            Debug.LogWarning("[PlayerMove] _animator is NULL!");
+        }
+
         HandleGroundCheck();
         HandleMovement();
         HandleStamina();
@@ -99,10 +140,39 @@ void Update()
             _velocity.y = -2f;
             _canDoubleJump = false;
         }
+
+        // 애니메이션 파라미터 업데이트
+        if (_animator != null)
+        {
+            _animator.SetBool(IsGroundedHash, _isGrounded);
+            // 착지 시 점프 애니메이션 종료
+            if (_isGrounded)
+            {
+                _animator.SetBool(IsJumpingHash, false);
+            }
+        }
+    }
+
+    // 디버그용: 현재 애니메이션 상태 로깅
+    private float _debugLogTimer = 0f;
+    private void LogAnimationState()
+    {
+        _debugLogTimer += Time.deltaTime;
+        if (_debugLogTimer >= 1f && _animator != null)
+        {
+            float speed = _animator.GetFloat(SpeedHash);
+            bool isJumping = _animator.GetBool(IsJumpingHash);
+            bool isGrounded = _animator.GetBool(IsGroundedHash);
+            Debug.Log($"[Animation] Speed: {speed:F2}, IsJumping: {isJumping}, IsGrounded: {isGrounded}");
+            _debugLogTimer = 0f;
+        }
     }
 
     private void HandleMovement()
     {
+        // 디버그 로그 호출
+        LogAnimationState();
+
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
 
@@ -120,7 +190,35 @@ void Update()
         _isRunning = isMoving && wantsToRun && CanRun;
         float currentSpeed = _isRunning ? runSpeed : walkSpeed;
 
-        _characterController.Move(moveDirection * currentSpeed * Time.deltaTime);
+        
+
+        // 애니메이션 Speed 파라미터 업데이트
+        if (_animator != null)
+        {
+            float animSpeed = isMoving ? (currentSpeed / runSpeed) : 0f;
+            _animator.SetFloat(SpeedHash, animSpeed);
+        }
+_characterController.Move(moveDirection * currentSpeed * Time.deltaTime);
+        
+        // 애니메이션 파라미터 업데이트
+        UpdateAnimation(isMoving, moveDirection.magnitude);
+    }
+    
+    private void UpdateAnimation(bool isMoving, float moveSpeed)
+    {
+        if (_soldierAnimator == null) return;
+
+        // Speed 파라미터로 BlendTree 제어 (0 = Idle, 1 = Run)
+        _soldierAnimator.SetFloat(AnimSpeed, _isRunning ? 1f : (isMoving ? 0.5f : 0f));
+    }
+
+    /// <summary>
+    /// 발사 애니메이션 설정 (외부에서 호출)
+    /// </summary>
+    public void SetShootingAnimation(bool isShooting)
+    {
+        if (_soldierAnimator == null) return;
+        _soldierAnimator.SetBool(AnimIsShooting, isShooting);
     }
 
     private void HandleStamina()
@@ -161,6 +259,15 @@ void Update()
                 // 1단 점프: 스태미나 소모 없음
                 _velocity.y = Mathf.Sqrt(jumpForce * 2f * gravity);
                 _canDoubleJump = true;
+
+                // 점프 애니메이션 트리거
+                if (_animator != null)
+                {
+                    _animator.SetBool(IsJumpingHash, true);
+                    #if UNITY_EDITOR
+                    Debug.Log("[Animation] Jump triggered! IsJumping: true");
+                    #endif
+                }
             }
             else if (_canDoubleJump && _currentStamina >= doubleJumpStaminaCost)
             {
@@ -170,6 +277,15 @@ void Update()
                 _staminaRegenTimer = staminaRegenDelay;
                 _canDoubleJump = false;
                 OnStaminaChanged?.Invoke(_currentStamina, maxStamina);
+
+                // 2단 점프 애니메이션
+                if (_animator != null)
+                {
+                    _animator.SetBool(IsJumpingHash, true);
+                    #if UNITY_EDITOR
+                    Debug.Log("[Animation] Double Jump triggered! IsJumping: true");
+                    #endif
+                }
             }
         }
     }

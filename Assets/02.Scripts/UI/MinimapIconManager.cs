@@ -37,6 +37,9 @@ public class MinimapIconManager : MonoBehaviour
     private RectTransform _playerIconRect;
     private float _lastDetectionTime;
 
+    // GC 최적화: 재사용 리스트
+    private List<Transform> _toRemoveBuffer = new List<Transform>();
+
     private class MinimapIconData
     {
         public RectTransform RectTransform;
@@ -316,13 +319,14 @@ private void DetectAndRegisterEnemies()
 
     private void CleanupDestroyedTargets()
     {
-        List<Transform> toRemove = new List<Transform>();
+        // GC 최적화: 재사용 리스트 활용
+        _toRemoveBuffer.Clear();
 
         foreach (var kvp in _trackedIcons)
         {
             if (kvp.Key == null)
             {
-                toRemove.Add(kvp.Key);
+                _toRemoveBuffer.Add(kvp.Key);
                 if (kvp.Value.RectTransform != null)
                 {
                     Destroy(kvp.Value.RectTransform.gameObject);
@@ -330,7 +334,7 @@ private void DetectAndRegisterEnemies()
             }
         }
 
-        foreach (Transform target in toRemove)
+        foreach (Transform target in _toRemoveBuffer)
         {
             _trackedIcons.Remove(target);
         }

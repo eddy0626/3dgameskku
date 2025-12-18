@@ -77,10 +77,18 @@ public class EnemyAI : MonoBehaviour
     #endregion
     
     #region Private Fields
-    
+
     private NavMeshAgent _agent;
     private EnemyHealth _health;
     private EnemyAttack _attack;
+    private Animator _animator;
+
+    // 애니메이션 파라미터 해시
+    private static readonly int AnimSpeed = Animator.StringToHash("Speed");
+    private static readonly int AnimAttack = Animator.StringToHash("Attack");
+    private static readonly int AnimHit = Animator.StringToHash("Hit");
+    private static readonly int AnimDie = Animator.StringToHash("Die");
+    private static readonly int AnimJump = Animator.StringToHash("Jump");
     
     private EnemyState _currentState = EnemyState.Idle;
     private Transform _target;
@@ -106,6 +114,9 @@ public class EnemyAI : MonoBehaviour
     private float _jumpTimer;
     private Coroutine _jumpCoroutine;
 
+    // GC 최적화: NavMeshPath 재사용
+    private NavMeshPath _cachedNavPath;
+
     
     #endregion
     
@@ -125,9 +136,13 @@ private void Awake()
         _agent = GetComponent<NavMeshAgent>();
         _health = GetComponent<EnemyHealth>();
         _attack = GetComponent<EnemyAttack>();
-        
+        _animator = GetComponent<Animator>();
+
         _spawnPosition = transform.position;
-        
+
+        // GC 최적화: NavMeshPath 미리 할당
+        _cachedNavPath = new NavMeshPath();
+
         // NavMeshAgent Off-Mesh Link 설정
         if (_agent != null)
         {
@@ -250,15 +265,15 @@ private void Update()
         {
             return;
         }
-        
+
         if (_currentState == EnemyState.Dead) return;
-        
+
         // Off-Mesh Link 처리 (NavMesh Link 자동 순회)
         HandleOffMeshLink();
-        
+
         // 타겟 감지
         DetectTarget();
-        
+
         // 상태별 행동
         switch (_currentState)
         {
@@ -281,6 +296,9 @@ private void Update()
                 UpdateHit();
                 break;
         }
+
+        // 애니메이션 업데이트
+        UpdateAnimation();
     }
     
     private void OnDestroy()
@@ -397,31 +415,32 @@ private void Update()
     private bool CanReachTargetViaNavMesh()
     {
         if (_target == null || _agent == null || !_agent.isOnNavMesh) return false;
-        
-        NavMeshPath path = new NavMeshPath();
-        
+
+        // GC 최적화: 캐시된 NavMeshPath 재사용
+        _cachedNavPath.ClearCorners();
+
         // 타겟 위치로 경로 계산
-        if (_agent.CalculatePath(_target.position, path))
+        if (_agent.CalculatePath(_target.position, _cachedNavPath))
         {
             // 경로가 완전하거나 부분적으로 유효한 경우
-            if (path.status == NavMeshPathStatus.PathComplete)
+            if (_cachedNavPath.status == NavMeshPathStatus.PathComplete)
             {
                 return true;
             }
             // 부분 경로도 허용 (가까이는 지점까지라도 이동)
-            else if (path.status == NavMeshPathStatus.PathPartial)
+            else if (_cachedNavPath.status == NavMeshPathStatus.PathPartial)
             {
                 // 부분 경로의 끝점이 타겟과 가까운지 확인
-                if (path.corners.Length > 0)
+                if (_cachedNavPath.corners.Length > 0)
                 {
-                    Vector3 endPoint = path.corners[path.corners.Length - 1];
+                    Vector3 endPoint = _cachedNavPath.corners[_cachedNavPath.corners.Length - 1];
                     float distToTarget = Vector3.Distance(endPoint, _target.position);
                     // 5미터 이내면 유효한 경로로 판단
                     return distToTarget < 5f;
                 }
             }
         }
-        
+
         return false;
     }
 
@@ -467,8 +486,10 @@ private void Update()
         // 새 상태 진입
         _currentState = newState;
         EnterState(newState);
-        
+
+        #if UNITY_EDITOR
         Debug.Log($"[EnemyAI] {gameObject.name} state changed to: {newState}");
+        #endif
     }
     
     /// <summary>
@@ -767,6 +788,23 @@ private void Update()
         // 코루틴에서 점프 완료 후 상태 변경 처리
     }
 
+    /// <summary>
+    /// 애니메이션 업데이트 - 이동 속도 기반
+    /// </summary>
+    private void UpdateAnimation()
+    {
+        if (_animator == null) return;
+
+        // NavMeshAgent 속도로 Speed 파라미터 설정
+        float speed = 0f;
+        if (_agent != null && _agent.isOnNavMesh)
+        {
+            speed = _agent.velocity.magnitude;
+        }
+
+        _animator.SetFloat(AnimSpeed, speed);
+    }
+
     #endregion
     
     #region Helper Methods
@@ -819,6 +857,12 @@ private void Update()
     /// </summary>
     private void PerformAttack()
     {
+        // 공격 애니메이션 트리거
+        if (_animator != null)
+        {
+            _animator.SetTrigger(AnimAttack);
+        }
+
         if (_attack != null)
         {
             _attack.Attack(_target);
@@ -835,22 +879,30 @@ private void Update()
     private void StartJump()
     {
         if (_isJumping) return;
-        
+
         // 이전 상태 저장
         _previousState = _currentState;
-        
+
         // 점프 상태로 변경
         ChangeState(EnemyState.Jump);
-        
+
+        // 점프 애니메이션 트리거
+        if (_animator != null)
+        {
+            _animator.SetTrigger(AnimJump);
+        }
+
         // Off-Mesh Link 데이터 얻기
         OffMeshLinkData linkData = _agent.currentOffMeshLinkData;
         _jumpStartPos = transform.position;
         _jumpEndPos = linkData.endPos + Vector3.up * _agent.baseOffset;
-        
+
         // 점프 코루틴 시작
         _jumpCoroutine = StartCoroutine(DoJump());
-        
+
+        #if UNITY_EDITOR
         Debug.Log($"[EnemyAI] {gameObject.name} 점프 시작: {_jumpStartPos} -> {_jumpEndPos}");
+        #endif
     }
     
     /// <summary>
@@ -942,7 +994,9 @@ private void Update()
             ChangeState(EnemyState.Chase);
         }
         
+        #if UNITY_EDITOR
         Debug.Log($"[EnemyAI] {gameObject.name} 점프 완료, 상태: {_currentState}");
+        #endif
     }
     
     /// <summary>
@@ -950,6 +1004,12 @@ private void Update()
     /// </summary>
     private void OnDeath()
     {
+        // 사망 애니메이션 트리거
+        if (_animator != null)
+        {
+            _animator.SetTrigger(AnimDie);
+        }
+
         ChangeState(EnemyState.Dead);
     }
 
@@ -960,21 +1020,29 @@ private void Update()
     {
         // 사망 상태이거나 경직 불가 시 무시
         if (_currentState == EnemyState.Dead || !_canBeStunned) return;
-        
+
+        // 피격 애니메이션 트리거
+        if (_animator != null)
+        {
+            _animator.SetTrigger(AnimHit);
+        }
+
         // 이미 피격 중이면 타이머만 리셋
         if (_currentState == EnemyState.Hit)
         {
             _hitTimer = 0f;
             return;
         }
-        
+
         // 현재 상태 저장 (복귀용)
         _previousState = _currentState;
-        
+
         // 피격 상태로 전환
         ChangeState(EnemyState.Hit);
-        
+
+        #if UNITY_EDITOR
         Debug.Log($"[EnemyAI] {gameObject.name} 피격! 데미지: {damage:F1}, 이전 상태: {_previousState}");
+        #endif
     }
 
     #endregion

@@ -325,7 +325,9 @@ protected override void Fire()
             }
         }
         
+        #if UNITY_EDITOR
         Debug.Log($"[{_weaponData.weaponName}] Projectile fired!");
+        #endif
     }
     
     /// <summary>
@@ -379,20 +381,44 @@ protected override void Fire()
     }
     
     /// <summary>
-    /// 탄흔 생성
+    /// 탄흔 생성 (ObjectPoolManager 활용)
     /// </summary>
     private void SpawnBulletHole(RaycastHit hit)
     {
         if (_weaponData.bulletHolePrefab == null) return;
-        
-        GameObject hole = Instantiate(
-            _weaponData.bulletHolePrefab, 
-            hit.point + hit.normal * 0.001f, // 표면에서 살짝 떨어뜨림
-            Quaternion.LookRotation(hit.normal)
-        );
-        
-        // 5초 후 자동 삭제
-        Destroy(hole, 5f);
+
+        Vector3 position = hit.point + hit.normal * 0.001f; // 표면에서 살짝 떨어뜨림
+        Quaternion rotation = Quaternion.LookRotation(hit.normal);
+
+        // ObjectPoolManager를 통한 풀링 (성능 최적화)
+        if (ObjectPoolManager.Instance != null)
+        {
+            GameObject hole = ObjectPoolManager.Instance.GetByPrefab(
+                _weaponData.bulletHolePrefab,
+                position,
+                rotation
+            );
+
+            if (hole != null)
+            {
+                // 5초 후 풀에 반환
+                ObjectPoolManager.Instance.ReturnDelayed(
+                    _weaponData.bulletHolePrefab.name,
+                    hole,
+                    5f
+                );
+            }
+        }
+        else
+        {
+            // 폴백: 풀 매니저 없으면 기존 방식
+            GameObject hole = Instantiate(
+                _weaponData.bulletHolePrefab,
+                position,
+                rotation
+            );
+            Destroy(hole, 5f);
+        }
     }
     
     /// <summary>
@@ -448,11 +474,15 @@ protected override void Fire()
     /// </summary>
 private void ApplyRecoil()
     {
+        #if UNITY_EDITOR
         Debug.Log($"[FirearmWeapon] ApplyRecoil called - RecoilSystem: {_recoilSystem != null}, WeaponData: {_weaponData != null}");
-        
+        #endif
+
         if (_recoilSystem != null && _weaponData != null)
         {
+            #if UNITY_EDITOR
             Debug.Log($"[FirearmWeapon] Calling RecoilSystem.ApplyRecoil with {_weaponData.weaponName}");
+            #endif
             _recoilSystem.ApplyRecoil(_weaponData);
         }
         else

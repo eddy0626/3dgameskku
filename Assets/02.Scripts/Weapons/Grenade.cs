@@ -30,6 +30,10 @@ public class Grenade : MonoBehaviour
     private ObjectPool<Grenade> _grenadePool;
     private ObjectPool<GameObject> _explosionPool;
     private bool _usePool;
+
+    // GC 최적화: HashSet 재사용
+    private static readonly HashSet<GameObject> _damagedObjectsBuffer = new HashSet<GameObject>();
+    private static readonly HashSet<Rigidbody> _affectedRigidbodiesBuffer = new HashSet<Rigidbody>();
     
     public GrenadeData GrenadeData
     {
@@ -261,22 +265,23 @@ public class Grenade : MonoBehaviour
     private void ApplyExplosionDamage()
     {
         if (_grenadeData == null) return;
-        
+
         // 폭발 범위 내 모든 콜라이더 탐색
         Collider[] hitColliders = Physics.OverlapSphere(
             transform.position,
             _grenadeData.explosionRadius,
             _grenadeData.damageableLayers
         );
-        
-        HashSet<GameObject> damagedObjects = new HashSet<GameObject>();
-        
+
+        // GC 최적화: 정적 HashSet 재사용
+        _damagedObjectsBuffer.Clear();
+
         foreach (Collider hitCollider in hitColliders)
         {
             GameObject hitObject = hitCollider.gameObject;
             
             // 이미 데미지를 준 오브젝트는 스킵
-            if (damagedObjects.Contains(hitObject.transform.root.gameObject))
+            if (_damagedObjectsBuffer.Contains(hitObject.transform.root.gameObject))
                 continue;
             
             // 장애물 체크 (벽 뒤에 있으면 데미지 감소 또는 무시)
@@ -312,7 +317,7 @@ public class Grenade : MonoBehaviour
                 // 폭발 중심에서 타겟으로의 방향 계산
                 Vector3 hitDirection = (hitCollider.bounds.center - transform.position).normalized;
                 damageable.TakeDamage(damage, hitCollider.bounds.center, -hitDirection);
-                damagedObjects.Add(hitObject.transform.root.gameObject);
+                _damagedObjectsBuffer.Add(hitObject.transform.root.gameObject);
             }
         }
     }
@@ -323,20 +328,21 @@ public class Grenade : MonoBehaviour
     private void ApplyExplosionForce()
     {
         if (_grenadeData == null) return;
-        
+
         // 폭발 범위 내 모든 Rigidbody에 힘 적용
         Collider[] hitColliders = Physics.OverlapSphere(
             transform.position,
             _grenadeData.explosionRadius
         );
-        
-        HashSet<Rigidbody> affectedRigidbodies = new HashSet<Rigidbody>();
-        
+
+        // GC 최적화: 정적 HashSet 재사용
+        _affectedRigidbodiesBuffer.Clear();
+
         foreach (Collider hitCollider in hitColliders)
         {
             Rigidbody rb = hitCollider.attachedRigidbody;
-            
-            if (rb != null && !affectedRigidbodies.Contains(rb))
+
+            if (rb != null && !_affectedRigidbodiesBuffer.Contains(rb))
             {
                 rb.AddExplosionForce(
                     _grenadeData.explosionForce,
@@ -345,8 +351,8 @@ public class Grenade : MonoBehaviour
                     1f, // 위로 올리는 힘
                     ForceMode.Impulse
                 );
-                
-                affectedRigidbodies.Add(rb);
+
+                _affectedRigidbodiesBuffer.Add(rb);
             }
         }
     }
