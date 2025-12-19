@@ -56,6 +56,10 @@ public class GrenadeManager : MonoBehaviour
     private ObjectPool<Grenade> _grenadePool;
     private ObjectPool<GameObject> _explosionPool;
     
+    // Animation
+    private Animator _playerAnimator;
+    private static readonly int IsThrowingHash = Animator.StringToHash("IsThrowing");
+
     // 이벤트
     public event Action<int, int> OnGrenadeCountChanged;
     public event Action OnGrenadeThrownEvent;
@@ -88,7 +92,18 @@ public class GrenadeManager : MonoBehaviour
         }
         
         _currentGrenades = _startGrenades;
-        
+
+        // Animator 찾기 (Soldier_demo의 Animator 우선)
+        Transform soldierTransform = transform.Find("Soldier_demo");
+        if (soldierTransform != null)
+        {
+            _playerAnimator = soldierTransform.GetComponent<Animator>();
+        }
+        if (_playerAnimator == null)
+        {
+            _playerAnimator = GetComponentInChildren<Animator>();
+        }
+
         InitializePools();
         SetupTrajectoryLine();
         InitializeImpactMarker();
@@ -102,7 +117,7 @@ public class GrenadeManager : MonoBehaviour
 private void Update()
     {
         // 게임이 Playing 상태가 아니면 입력 처리 안함
-        if (!GameStateManager.Instance.IsPlaying) return;
+        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsPlaying) return;
         
         HandleLegacyInput();
         
@@ -313,9 +328,15 @@ private void Update()
     public void PrepareGrenade()
     {
         if (!CanThrow) return;
-        
+
         _grenadeReady = true;
-        
+
+        // 던지기 애니메이션 시작
+        if (_playerAnimator != null)
+        {
+            _playerAnimator.SetBool(IsThrowingHash, true);
+        }
+
         if (_enableCooking)
         {
             _isCooking = true;
@@ -341,7 +362,13 @@ private void Update()
         _nextThrowTime = Time.time + _grenadeData.throwCooldown;
         _isCooking = false;
         _grenadeReady = false;
-        
+
+        // 던지기 애니메이션 종료
+        if (_playerAnimator != null)
+        {
+            _playerAnimator.SetBool(IsThrowingHash, false);
+        }
+
         OnGrenadeCountChanged?.Invoke(_currentGrenades, _maxGrenades);
         OnGrenadeThrownEvent?.Invoke();
         OnCookingProgress?.Invoke(0f);

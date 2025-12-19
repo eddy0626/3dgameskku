@@ -18,7 +18,7 @@ public class CameraViewSwitcher : MonoBehaviour
     [SerializeField] private Transform cameraTransform;
 
     [Header("FPS Position (Local)")]
-    [SerializeField] private Vector3 fpsPosition = new Vector3(0f, 0.58f, 0.08f);
+    [SerializeField] private Vector3 fpsPosition = new Vector3(0f, 1.7f, 0.15f);  // 머리/눈 높이
     [SerializeField] private Vector3 fpsRotation = Vector3.zero;
 
     [Header("Top View Position (Local)")]

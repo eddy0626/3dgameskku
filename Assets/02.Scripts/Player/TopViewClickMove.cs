@@ -242,7 +242,10 @@ public class TopViewClickMove : MonoBehaviour
         // 비활성화 시 NavMeshAgent도 비활성화
         if (_agent != null)
         {
-            _agent.ResetPath();
+            if (_agent.isOnNavMesh)
+            {
+                _agent.ResetPath();
+            }
             _agent.enabled = false;
         }
 

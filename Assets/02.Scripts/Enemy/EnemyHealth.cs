@@ -1,11 +1,12 @@
 using System;
 using UnityEngine;
 using DG.Tweening;
+using SquadSurvival.Economy;
 
 /// <summary>
 /// 적 체력 관리 컴포넌트
 /// IDamageable 인터페이스 구현
-/// DOTween Pro를 사용한 피격 애니메이션 시스템
+/// DOTween Pro를 사용/한 피격 애니메이션 시스템
 /// </summary>
 public class EnemyHealth : MonoBehaviour, IDamageable
 {
@@ -421,16 +422,23 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     private void Die()
     {
         Debug.Log($"[EnemyHealth] {gameObject.name} died!");
-        
+
         // 트윈 정리
         KillAllTweens();
-        
+
         // 사망 사운드 재생
         PlaySound(_deathSound);
-        
+
+        // 코인 보상 처리
+        if (CoinManager.Instance != null)
+        {
+            bool isElite = GetComponent<EliteEnemyAI>() != null;
+            CoinManager.Instance.RewardKill(false, isElite, transform.position);
+        }
+
         // 사망 이벤트 발생
         OnDeath?.Invoke();
-        
+
         // 사망 애니메이션 (옵션)
         PlayDeathAnimation();
     }

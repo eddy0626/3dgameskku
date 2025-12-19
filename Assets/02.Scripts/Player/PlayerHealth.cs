@@ -24,10 +24,12 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     #endregion
     
     #region Private Fields
-    
+
     private AudioSource _audioSource;
     private float _invincibilityTimer;
-    
+    private Animator _animator;
+    private static readonly int IsDeadHash = Animator.StringToHash("IsDead");
+
     #endregion
     
     #region Events
@@ -56,6 +58,17 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         if (_audioSource == null)
         {
             _audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        // Animator 찾기 (Soldier_demo의 Animator 우선)
+        Transform soldierTransform = transform.Find("Soldier_demo");
+        if (soldierTransform != null)
+        {
+            _animator = soldierTransform.GetComponent<Animator>();
+        }
+        if (_animator == null)
+        {
+            _animator = GetComponentInChildren<Animator>();
         }
     }
     
@@ -145,10 +158,16 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     private void Die()
     {
         Debug.Log("[PlayerHealth] Player died!");
-        
+
+        // 사망 애니메이션 재생
+        if (_animator != null)
+        {
+            _animator.SetBool(IsDeadHash, true);
+        }
+
         PlaySound(_deathSound);
         OnDeath?.Invoke();
-        
+
         // 여기에 사망 처리 로직 추가
         // 예: 게임 오버 화면, 리스폰 등
     }
@@ -160,9 +179,15 @@ public class PlayerHealth : MonoBehaviour, IDamageable
     {
         _currentHealth = _maxHealth * Mathf.Clamp01(healthPercent);
         _canTakeDamage = true;
-        
+
+        // 부활 시 사망 애니메이션 해제
+        if (_animator != null)
+        {
+            _animator.SetBool(IsDeadHash, false);
+        }
+
         Debug.Log($"[PlayerHealth] Revived with {_currentHealth} health!");
-        
+
         OnHealthChanged?.Invoke(_currentHealth, _maxHealth);
         OnRevive?.Invoke();
     }

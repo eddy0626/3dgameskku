@@ -35,7 +35,12 @@ public class PlayerMove : MonoBehaviour
 
     [Header("Recoil System")]
     [SerializeField] private RecoilSystem _recoilSystem;
-    
+
+    [Header("Mouse Look")]
+    [SerializeField] private float rotationSpeed = 15f;
+    [SerializeField] private LayerMask groundLayerMask = ~0; // 기본값: 모든 레이어
+    [SerializeField] private bool useMouseLook = true;
+
     // Animation parameter hashes (PlayerAnimator.controller와 일치)
     private static readonly int AnimSpeed = Animator.StringToHash("Speed");
     private static readonly int AnimIsShooting = Animator.StringToHash("IsShooting");
@@ -126,6 +131,7 @@ void Update()
 
         HandleGroundCheck();
         HandleMovement();
+        HandleMouseLook();
         HandleStamina();
         HandleJump();
         ApplyGravity();
@@ -210,6 +216,33 @@ _characterController.Move(moveDirection * currentSpeed * Time.deltaTime);
 
         // Speed 파라미터로 BlendTree 제어 (0 = Idle, 1 = Run)
         _soldierAnimator.SetFloat(AnimSpeed, _isRunning ? 1f : (isMoving ? 0.5f : 0f));
+    }
+
+    /// <summary>
+    /// 마우스 방향으로 캐릭터 회전
+    /// </summary>
+    private void HandleMouseLook()
+    {
+        if (!useMouseLook) return;
+
+        // 마우스 위치에서 레이캐스트
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        // 바닥 평면과의 교차점 계산 (더 안정적인 방법)
+        Plane groundPlane = new Plane(Vector3.up, new Vector3(0, transform.position.y, 0));
+
+        if (groundPlane.Raycast(ray, out float distance))
+        {
+            Vector3 targetPoint = ray.GetPoint(distance);
+            Vector3 lookDirection = targetPoint - transform.position;
+            lookDirection.y = 0f; // 수평 회전만
+
+            if (lookDirection.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(lookDirection);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+            }
+        }
     }
 
     /// <summary>

@@ -12,7 +12,12 @@ public class PlayerShooting : MonoBehaviour
     [SerializeField] private FirearmWeapon _currentWeapon;
     
     [Header("입력 설정")]
-    [SerializeField] private KeyCode _reloadKey = KeyCode.R;
+    
+    [Header("Animation")]
+    [SerializeField] private Animator _animator;
+    private static readonly int IsShootingHash = Animator.StringToHash("IsShooting");
+    
+[SerializeField] private KeyCode _reloadKey = KeyCode.R;
     
     // 캐시
     private WeaponData _weaponData;
@@ -52,6 +57,20 @@ private void Start()
         {
             Debug.LogWarning("[PlayerShooting] No weapon found!");
         }
+
+        // Animator 자동 찾기 (Soldier_demo의 Animator 우선)
+        if (_animator == null)
+        {
+            Transform soldierTransform = transform.Find("Soldier_demo");
+            if (soldierTransform != null)
+            {
+                _animator = soldierTransform.GetComponent<Animator>();
+            }
+        }
+        if (_animator == null)
+        {
+            _animator = GetComponentInChildren<Animator>();
+        }
     }
     
 private void Update()
@@ -74,20 +93,37 @@ private void Update()
 private void HandleFireInput()
     {
         if (_currentWeapon == null) return;
-        
+
         // UI 위에 마우스가 있으면 발사 차단
         if (IsPointerOverUI())
         {
             _currentWeapon.SetTriggerState(false);
+            // UI 위에서는 사격 애니메이션 중지
+            if (_animator != null)
+            {
+                _animator.SetBool(IsShootingHash, false);
+            }
             return;
         }
-        
+
         // 트리거 상태 전달 (마우스 버튼 누름 여부)
         bool isMouseHeld = Input.GetMouseButton(0);
         _currentWeapon.SetTriggerState(isMouseHeld);
-        
+
+        // 사격 애니메이션 파라미터 업데이트 (마우스 상태에 따라 true/false)
+        if (_animator != null)
+        {
+            bool prevShooting = _animator.GetBool(IsShootingHash);
+            _animator.SetBool(IsShootingHash, isMouseHeld);
+
+            // 상태 변경 시 로그 출력
+            if (prevShooting != isMouseHeld)
+            {
+                Debug.Log($"[Animation] IsShooting: {isMouseHeld}");
+            }
+        }
+
         // 마우스 버튼 누르고 있으면 발사 시도
-        // 발사 모드별 처리는 FirearmWeapon.TryFire()에서 담당
         if (isMouseHeld)
         {
             _currentWeapon.TryFire();

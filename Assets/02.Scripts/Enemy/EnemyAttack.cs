@@ -76,8 +76,8 @@ public class EnemyAttack : MonoBehaviour
     
     [Header("애니메이션")]
     [SerializeField] private Animator _animator;
-    [SerializeField] private string _meleeAttackTrigger = "MeleeAttack";
-    [SerializeField] private string _fireAttackTrigger = "Fire";
+    [SerializeField] private string _meleeAttackTrigger = "Attack";
+    [SerializeField] private string _fireAttackTrigger = "Attack";
     [SerializeField] private string _isFiringBool = "IsFiring";
     
     #endregion
@@ -98,7 +98,11 @@ public class EnemyAttack : MonoBehaviour
     
     // 버스트
     private int _currentBurstCount;
-    
+
+    // 애니메이션 파라미터 존재 여부 캐시
+    private bool _hasAttackParam;
+    private bool _hasIsFiringParam;
+
     #endregion
     
     #region Properties
@@ -159,8 +163,45 @@ public class EnemyAttack : MonoBehaviour
         {
             _hitLayer = ~LayerMask.GetMask("Enemy", "Ignore Raycast");
         }
+
+        // 애니메이션 파라미터 존재 여부 캐시
+        CacheAnimatorParameters();
     }
-    
+
+    /// <summary>
+    /// Animator 파라미터 존재 여부 확인 및 캐시
+    /// </summary>
+    private void CacheAnimatorParameters()
+    {
+        if (_animator == null) return;
+
+        foreach (var param in _animator.parameters)
+        {
+            if (param.name == _meleeAttackTrigger || param.name == _fireAttackTrigger)
+                _hasAttackParam = true;
+            if (param.name == _isFiringBool)
+                _hasIsFiringParam = true;
+        }
+    }
+
+    /// <summary>
+    /// 안전한 트리거 설정 (파라미터 존재 시에만)
+    /// </summary>
+    private void SafeSetTrigger(string paramName)
+    {
+        if (_animator == null || !_hasAttackParam) return;
+        _animator.SetTrigger(paramName);
+    }
+
+    /// <summary>
+    /// 안전한 Bool 설정 (파라미터 존재 시에만)
+    /// </summary>
+    private void SafeSetBool(string paramName, bool value)
+    {
+        if (_animator == null || !_hasIsFiringParam) return;
+        _animator.SetBool(paramName, value);
+    }
+
     private void Update()
     {
         // 탄퍼짐 회복
@@ -281,10 +322,7 @@ public class EnemyAttack : MonoBehaviour
         
         _isFiring = true;
         
-        if (_animator != null)
-        {
-            _animator.SetBool(_isFiringBool, true);
-        }
+        SafeSetBool(_isFiringBool, true);
         
         switch (_fireMode)
         {
@@ -317,12 +355,9 @@ public class EnemyAttack : MonoBehaviour
             StopCoroutine(_firingCoroutine);
             _firingCoroutine = null;
         }
-        
-        if (_animator != null)
-        {
-            _animator.SetBool(_isFiringBool, false);
-        }
-        
+
+        SafeSetBool(_isFiringBool, false);
+
         _currentBurstCount = 0;
     }
     
@@ -406,11 +441,8 @@ public class EnemyAttack : MonoBehaviour
         PlayFireSound();
         
         // 애니메이션
-        if (_animator != null)
-        {
-            _animator.SetTrigger(_fireAttackTrigger);
-        }
-        
+        SafeSetTrigger(_fireAttackTrigger);
+
         // 히트스캔 또는 발사체
         if (_projectilePrefab != null)
         {
@@ -604,12 +636,9 @@ public class EnemyAttack : MonoBehaviour
     private void PerformMeleeAttack()
     {
         Debug.Log($"[EnemyAttack] {gameObject.name} performs melee attack!");
-        
-        if (_animator != null)
-        {
-            _animator.SetTrigger(_meleeAttackTrigger);
-        }
-        
+
+        SafeSetTrigger(_meleeAttackTrigger);
+
         PlaySound(_meleeSound);
         
         if (_meleeEffectPrefab != null)
