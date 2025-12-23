@@ -110,8 +110,8 @@ public class LoginUISetup : Editor
             vlg.childForceExpandWidth = false;
             vlg.childForceExpandHeight = false;
 
-            // Setup ID_Row
-            SetupInputRow(loginForm.Find("ID_Row"), "ID", "Enter ID");
+            // Setup ID_Row (Email)
+            SetupInputRow(loginForm.Find("ID_Row"), "Email", "Enter Email");
             // Setup Password_Row
             SetupInputRow(loginForm.Find("Password_Row"), "Password", "Enter Password", true);
             // Setup PasswordConfirm_Row

@@ -3,6 +3,9 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SquadSurvival.UI
 {
@@ -48,6 +51,17 @@ namespace SquadSurvival.UI
         private UserDatabase userDatabase;
         private bool isSignupMode;
 
+        // Email regex pattern
+        private static readonly Regex EmailRegex = new Regex(
+            @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+            RegexOptions.Compiled);
+
+        // Password validation patterns
+        private static readonly Regex PasswordLengthRegex = new Regex(@"^[a-zA-Z!@#$%^&*()_+\-=\[\]{};':""\\|,.<>\/?]{7,20}$", RegexOptions.Compiled);
+        private static readonly Regex PasswordUppercaseRegex = new Regex(@"[A-Z]", RegexOptions.Compiled);
+        private static readonly Regex PasswordLowercaseRegex = new Regex(@"[a-z]", RegexOptions.Compiled);
+        private static readonly Regex PasswordSpecialCharRegex = new Regex(@"[!@#$%^&*()_+\-=\[\]{};':""\\|,.<>\/?]", RegexOptions.Compiled);
+
         private void Awake()
         {
             LoadUserDatabase();
@@ -90,9 +104,10 @@ namespace SquadSurvival.UI
 
         private bool ValidateLogin(string username, string password)
         {
+            string hashedPassword = HashPassword(password);
             foreach (var user in userDatabase.users)
             {
-                if (user.username == username && user.password == password)
+                if (user.username == username && user.password == hashedPassword)
                     return true;
             }
             return false;
@@ -103,10 +118,54 @@ namespace SquadSurvival.UI
             var newUser = new UserData
             {
                 username = username,
-                password = password
+                password = HashPassword(password)
             };
             userDatabase.users.Add(newUser);
             SaveUserDatabase();
+        }
+
+        private string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                StringBuilder builder = new StringBuilder();
+                foreach (byte b in bytes)
+                {
+                    builder.Append(b.ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            return EmailRegex.IsMatch(email);
+        }
+
+        private (bool isValid, string errorMessage) ValidatePassword(string password)
+        {
+            if (!PasswordLengthRegex.IsMatch(password))
+            {
+                return (false, "Password must be 7-20 characters (letters and special characters only).");
+            }
+
+            if (!PasswordUppercaseRegex.IsMatch(password))
+            {
+                return (false, "Password must contain at least one uppercase letter.");
+            }
+
+            if (!PasswordLowercaseRegex.IsMatch(password))
+            {
+                return (false, "Password must contain at least one lowercase letter.");
+            }
+
+            if (!PasswordSpecialCharRegex.IsMatch(password))
+            {
+                return (false, "Password must contain at least one special character.");
+            }
+
+            return (true, string.Empty);
         }
 
         private void AutoBindReferences()
@@ -278,25 +337,28 @@ namespace SquadSurvival.UI
 
         public void OnSignupButtonClick()
         {
-            string username = GetUsername();
+            string email = GetUsername();
             string password = GetPassword();
             string passwordConfirm = GetPasswordConfirm();
 
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
-                SetNotification("Please enter username and password.", Color.red);
+                SetNotification("Please enter email and password.", Color.red);
                 return;
             }
 
-            if (username.Length < 3)
+            // Validate email format
+            if (!IsValidEmail(email))
             {
-                SetNotification("Username must be at least 3 characters.", Color.red);
+                SetNotification("Please enter a valid email address.", Color.red);
                 return;
             }
 
-            if (password.Length < 4)
+            // Validate password rules
+            var (isValidPassword, passwordError) = ValidatePassword(password);
+            if (!isValidPassword)
             {
-                SetNotification("Password must be at least 4 characters.", Color.red);
+                SetNotification(passwordError, Color.red);
                 return;
             }
 
@@ -306,15 +368,15 @@ namespace SquadSurvival.UI
                 return;
             }
 
-            if (UserExists(username))
+            if (UserExists(email))
             {
-                SetNotification("Username already exists.", Color.red);
+                SetNotification("Email already exists.", Color.red);
                 return;
             }
 
             // Register new user
-            RegisterUser(username, password);
-            Debug.Log($"Signup successful - Username: {username}");
+            RegisterUser(email, password);
+            Debug.Log($"Signup successful - Email: {email}");
             SetNotification("Account created successfully!", Color.green);
 
             // Switch back to login mode after short delay
